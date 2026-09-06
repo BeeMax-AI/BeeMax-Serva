@@ -216,6 +216,7 @@ export class AnalysisService {
     }
   }
   async chat(actor: Actor, data: Record<string, unknown>) {
+    const startedAt = Date.now();
     const question = text(data.question, "问题", 2000),
       id =
         typeof data.conversationId === "string"
@@ -361,8 +362,11 @@ export class AnalysisService {
         {
           id: randomUUID(),
           role: "user",
+          ...(typeof data.requestId === "string"
+            ? { requestId: data.requestId }
+            : {}),
           text: question,
-          at: new Date().toISOString(),
+          at: new Date(startedAt).toISOString(),
           context,
         },
         {
@@ -371,6 +375,7 @@ export class AnalysisService {
           text: answer,
           at: new Date().toISOString(),
           mode,
+          durationMs: Math.max(0, Date.now() - startedAt),
           ticketIds: matches.slice(0, 8).map((t) => t.id),
         },
       );

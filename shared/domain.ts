@@ -175,6 +175,8 @@ export interface Conversation {
     text: string;
     at: string;
     mode?: string;
+    durationMs?: number;
+    requestId?: string;
     coverage?: string;
     references?: string[];
     ticketIds?: string[];

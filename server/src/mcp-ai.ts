@@ -362,6 +362,7 @@ export class McpAiService {
     actor: Actor,
     data: Record<string, unknown>,
   ): Promise<Conversation> {
+    const startedAt = Date.now();
     this.authorize(actor);
     const message = text(data.question, "问题", 2000),
       request = text(data.requestId, "请求标识", 100);
@@ -483,9 +484,10 @@ export class McpAiService {
       conversation.messages.push(
         {
           id: `${op.id}:user`,
+          requestId: request,
           role: "user",
           text: message,
-          at: now,
+          at: new Date(startedAt).toISOString(),
           context: {
             page: string(context.page, 40),
             label: string(
@@ -506,6 +508,7 @@ export class McpAiService {
           text: string(result.answer),
           at: now,
           mode: "MCP · AI 回答",
+          durationMs: Math.max(0, Date.now() - startedAt),
           coverage: string(result.data_coverage, 2000),
           references: list(result.references)
             .map((r) =>
