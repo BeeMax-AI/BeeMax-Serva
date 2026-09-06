@@ -305,10 +305,26 @@ async function handleClick(e: MouseEvent) {
     prev: () => {
       state.listPage--;
       renderContent();
+      if (state.page === "staff") {
+        document
+          .querySelector<HTMLElement>(".staff-ledger-title h2")
+          ?.focus({ preventScroll: true });
+        document
+          .querySelector(".staff-panel")
+          ?.scrollIntoView({ block: "start" });
+      }
     },
     next: () => {
       state.listPage++;
       renderContent();
+      if (state.page === "staff") {
+        document
+          .querySelector<HTMLElement>(".staff-ledger-title h2")
+          ?.focus({ preventScroll: true });
+        document
+          .querySelector(".staff-panel")
+          ?.scrollIntoView({ block: "start" });
+      }
     },
     export: () => {
       const m = state.metrics!,
@@ -344,6 +360,18 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
+  if (input.id === "staff-page-size") {
+    const size = Number(input.value);
+    if (![20, 30].includes(size)) return;
+    state.staffPageSize = size;
+    state.listPage = 1;
+    renderContent();
+    document
+      .querySelector<HTMLSelectElement>("#staff-page-size")
+      ?.focus({ preventScroll: true });
+    document.querySelector(".staff-panel")?.scrollIntoView({ block: "start" });
+    return;
+  }
   if (input.dataset.filter) {
     const key = input.dataset.filter as
       "account" | "status" | "direction" | "messageType" | "group";

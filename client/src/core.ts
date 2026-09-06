@@ -12,6 +12,7 @@ export const state: {
   direction: string;
   messageType: string;
   listPage: number;
+  staffPageSize: number;
   period: string;
   metrics: Metrics | null;
   report: string;
@@ -28,6 +29,7 @@ export const state: {
   direction: "",
   messageType: "",
   listPage: 1,
+  staffPageSize: 20,
   period: "week",
   metrics: null,
   report: "",

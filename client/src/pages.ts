@@ -79,7 +79,7 @@ export function staffRows() {
     })
     .sort((a, b) => b.count - a.count);
 }
-function staffTable(limit?: number) {
+function staffTable(limit?: number, rows = staffRows()) {
   return table(
     [
       "人员 / 小组",
@@ -88,13 +88,10 @@ function staffTable(limit?: number) {
       "平均响应",
       ...(limit ? [] : ["平均处理"]),
     ],
-    staffRows()
-      .filter((p) => !state.group || p.groupId === state.group)
-      .slice(0, limit)
-      .map(
-        (p) =>
-          `<tr><td><div class="person"><span class="avatar">${esc(p.name[0])}</span><div>${esc(p.name)}<small>${esc(groupName(p.groupId))} · ${esc(p.scheduleLabel || (p.active ? "当班" : "未在岗"))}</small></div></div></td><td>${p.count} 单</td><td>${p.open} 单</td><td>${p.response} 分钟</td>${limit ? "" : `<td>${p.processing} 分钟</td>`}</tr>`,
-      ),
+    (limit ? rows.slice(0, limit) : slicePage(rows, state.staffPageSize)).map(
+      (p) =>
+        `<tr><td><div class="person"><span class="avatar">${esc(p.name[0])}</span><div>${esc(p.name)}<small>${esc(groupName(p.groupId))} · ${esc(p.scheduleLabel || (p.active ? "当班" : "未在岗"))}</small></div></div></td><td>${p.count} 单</td><td>${p.open} 单</td><td>${p.response} 分钟</td>${limit ? "" : `<td>${p.processing} 分钟</td>`}</tr>`,
+    ),
   );
 }
 export function overview() {
@@ -169,7 +166,12 @@ export function tickets() {
 }
 export function staff() {
   const rows = staffRows().filter(
-    (p) => !state.group || p.groupId === state.group,
+    (p) =>
+      (!state.group || p.groupId === state.group) &&
+      [p.name, groupName(p.groupId)]
+        .join(" ")
+        .toLowerCase()
+        .includes(state.query.trim().toLowerCase()),
   );
   return (
     title(
@@ -177,14 +179,14 @@ export function staff() {
       "基于人员配置与工单时间戳计算。",
       button("管理排班", "roster"),
     ) +
-    `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}<div class="filters"><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></div>` +
+    `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}` +
     rail([
       ["人员", rows.length, "当前筛选范围"],
       ["今日接单", rows.reduce((n, p) => n + p.count, 0), "按接单时间"],
       ["当前待办", rows.reduce((n, p) => n + p.open, 0), "未闭环工单"],
       ["最多待办", Math.max(0, ...rows.map((p) => p.open)), "单人当前待办"],
     ]) +
-    `<section class="panel">${staffTable()}<div class="panel-footer">平均响应：接单 − 创建；平均处理：闭环 − 接单。仅纳入有效时间戳。</div></section>`
+    `<section class="panel staff-panel" aria-label="人员明细"><div class="staff-toolbar"><div class="staff-ledger-title"><h2 tabindex="-1">人员明细</h2><span>${rows.length} 条记录</span></div><div class="staff-controls"><label class="staff-search">${icon("search")}<input id="search" aria-label="搜索人员" placeholder="搜索姓名或小组" value="${esc(state.query)}"></label><label class="staff-group"><span>小组</span><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></label>${button("重置", "reset", false, !state.query && !state.group)}</div></div>${staffTable(undefined, rows)}<div class="staff-pagination"><label>每页<select id="staff-page-size" aria-label="每页人员记录数">${[20, 30].map((size) => `<option value="${size}" ${state.staffPageSize === size ? "selected" : ""}>${size} 条</option>`).join("")}</select></label>${pager(rows.length, state.staffPageSize)}</div><div class="panel-footer">平均响应：接单 − 创建；平均处理：闭环 − 接单。仅纳入有效时间戳。</div></section>`
   );
 }
 export function accounts() {
