@@ -112,7 +112,7 @@ async function fixture(t: any, sse = false) {
         value = {
           ...rows.find((r) => r.id === args.id),
           content: "真实详情内容",
-          events: [
+          events: rows.find((r) => r.id === args.id)?.events || [
             { ts: 1788673235152, event: "created", detail: { by: "接口测试" } },
           ],
         };
@@ -301,4 +301,89 @@ test("MCP assistant reports missing interfaces instead of false zero counts", as
   const ticket = await analysis.chat(actor, { question: "查询 G001" });
   assert.match(ticket.messages.at(-1)!.text, /真实详情内容/);
   assert.equal(f.provider.readDashboard(actor).tickets.length, 0);
+});
+
+test("MCP timeline translates reminder events and timestamps into readable Chinese", async (t) => {
+  const f = await fixture(t);
+  const at = Date.parse("2026-09-06T09:30:00+08:00");
+  f.rows[0].events = [
+    {
+      ts: at,
+      event: "created",
+      detail: {
+        fields: { room: "A101", raw: "Please water the plants." },
+        session: "internal-session",
+      },
+    },
+    {
+      ts: at,
+      event: "classified",
+      detail: JSON.stringify({
+        type: "咨询",
+        priority: "低",
+        selfServe: false,
+      }),
+    },
+    {
+      ts: at,
+      event: "dispatched",
+      detail: {
+        groupId: "service",
+        tier: 1,
+        mention: "测试人员",
+        delivered: true,
+      },
+    },
+    { ts: at, event: "accepted", detail: { assignee: "测试人员" } },
+    {
+      ts: at,
+      event: "accept_reminded",
+      detail: { assignee: "测试人员", hours: 4 },
+    },
+    {
+      ts: at,
+      event: "held",
+      detail: { by: "操作员", reason: "待交接", remind_at: at, await: true },
+    },
+    {
+      ts: at,
+      event: "hold_reminded",
+      detail: { holder: "测试人员", remind_at: at, nudges: 1 },
+    },
+    {
+      ts: at,
+      event: "hold_remind_set",
+      detail: { by: "操作员", remind_at: at },
+    },
+    {
+      ts: at,
+      event: "new_internal_event",
+      detail: { secretInternalId: "internal-session" },
+    },
+  ];
+  const ticket = (await f.provider.getTicket(actor, f.rows[0].id))!;
+  assert.deepEqual(
+    ticket.events.map((e) => e.name),
+    [
+      "创建工单",
+      "自动分类",
+      "派发工单",
+      "接单",
+      "接单后完成提醒",
+      "挂起",
+      "挂起跟进提醒",
+      "设置跟进时间",
+      "业务记录",
+    ],
+  );
+  assert.match(ticket.events[0].detail, /客户原文：Please water the plants/);
+  assert.match(ticket.events[1].detail, /问题类型：咨询/);
+  assert.match(ticket.events[2].detail, /负责小组：客服沟通群/);
+  assert.match(ticket.events[4].detail, /4 小时/);
+  assert.match(ticket.events[6].detail, /2026-09-06 09:30/);
+  assert.match(ticket.events[6].detail, /第 1 次/);
+  assert.doesNotMatch(
+    JSON.stringify(ticket.events),
+    /internal-session|remind_at|178865|\[object Object\]/,
+  );
 });

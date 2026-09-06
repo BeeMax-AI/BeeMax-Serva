@@ -1,3 +1,4 @@
+import { timelineEvent } from "./mcp-timeline.ts";
 import { createHash, randomUUID } from "node:crypto";
 import type {
   Actor,
@@ -334,58 +335,9 @@ export class McpProvider extends LocalProvider {
       remindAt: iso(t.remind_at || t.hold?.remind_at) || undefined,
       version: hash(t),
       events: Array.isArray(t.events)
-        ? t.events.map((e: any) => ({
-            at: iso(e.ts) || iso(t.created_at)!,
-            name:
-              (
-                {
-                  created: "创建工单",
-                  dispatched: "派发工单",
-                  consult_dispatched: "咨询转派",
-                  accepted: "接单",
-                  closed: "完成闭环",
-                  held: "挂起",
-                  hold: "挂起",
-                  resumed: "恢复处理",
-                  resume: "恢复处理",
-                  reassigned: "转派",
-                  urged: "催办",
-                  escalated: "升级处理",
-                } as Record<string, string>
-              )[e.event] || String(e.event || "状态变更"),
-            detail:
-              typeof e.detail === "string"
-                ? e.detail
-                : Object.entries(e.detail || {})
-                    .map(([key, value]) => {
-                      const labels: Record<string, string> = {
-                        assignee: "处理人",
-                        reason: "原因",
-                        mention: "通知人员",
-                        target: "目标小组",
-                        groupId: "负责小组",
-                        toGroup: "目标小组",
-                        delivered: "通知送达",
-                        note: "备注",
-                        parent: "关联工单",
-                        tier: "处理档位",
-                      };
-                      if (!labels[key] || value == null) return "";
-                      const display = ["target", "groupId", "toGroup"].includes(
-                        key,
-                      )
-                        ? groups.find((g) => g.id === value)?.name || value
-                        : typeof value === "boolean"
-                          ? value
-                            ? "是"
-                            : "否"
-                          : value;
-                      return labels[key] + "：" + String(display);
-                    })
-                    .filter(Boolean)
-                    .join("；") || "查看该节点的操作人及时间",
-            by: String(e.by || e.detail?.by || "远端服务"),
-          }))
+        ? t.events.map((e: unknown) =>
+            timelineEvent(e, groups, iso(t.created_at)!),
+          )
         : [],
     };
   }
