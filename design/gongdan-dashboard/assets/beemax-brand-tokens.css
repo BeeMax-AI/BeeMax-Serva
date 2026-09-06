@@ -1,0 +1,63 @@
+:root {
+  /* BeeMax AI core brand */
+  --beemax-blue-300: #b1d9ff;
+  --beemax-blue-500: #4fa9ff;
+  --beemax-blue-600: #178dff;
+  --beemax-blue-700: #0072e0;
+  --beemax-mint-500: #17ffb9;
+  --beemax-green-600: #0ec08a;
+
+  /* Neutrals used on beemax.ai */
+  --beemax-black: #000000;
+  --beemax-dark-900: #0a0a0a;
+  --beemax-navy-900: #0b1830;
+  --beemax-ink-800: #1a1e24;
+  --beemax-white: #ffffff;
+  --beemax-warm-white: #f7f6f2;
+  --beemax-surface: #f5f7f9;
+  --beemax-card: #f5f5f5;
+
+  /* Approved light-first admin composition */
+  --beemax-admin-canvas: var(--beemax-white);
+  --beemax-admin-sidebar: var(--beemax-navy-900);
+  --beemax-admin-subtle: var(--beemax-surface);
+  --beemax-admin-text: var(--beemax-dark-900);
+  --beemax-admin-text-secondary: rgba(11, 24, 48, 0.64);
+  --beemax-admin-text-muted: rgba(11, 24, 48, 0.46);
+  --beemax-admin-border: rgba(11, 24, 48, 0.1);
+  --beemax-admin-grid: rgba(11, 24, 48, 0.07);
+  --beemax-admin-blue-soft: rgba(23, 141, 255, 0.1);
+  --beemax-admin-sidebar-width: 216px;
+  --beemax-admin-page-gutter: clamp(24px, 2.8vw, 40px);
+  --beemax-admin-section-gap: 24px;
+  --beemax-admin-panel-radius: 16px;
+
+  /* Supporting campaign/card colors, not core brand colors */
+  --beemax-teal-600: #00aeba;
+  --beemax-peach-300: #ffbea0;
+  --beemax-olive-800: #315e01;
+  --beemax-gray-300: #dcdcdc;
+
+  /* Exact logo gradient from the production SVG */
+  --beemax-logo-gradient: linear-gradient(
+    126deg,
+    #b1d9ff 19.21%,
+    #4fa9ff 48.81%,
+    #178dff 77.13%
+  );
+
+  /* Exact interface tokens observed on the production site */
+  --beemax-radius-xs: 4px;
+  --beemax-radius-sm: 8px;
+  --beemax-radius-md: 16px;
+  --beemax-radius-lg: 32px;
+  --beemax-radius-xl: 60px;
+  --beemax-radius-pill: 100px;
+
+  --beemax-shadow-sm: 0 1px 2px #0000000d;
+  --beemax-shadow-md: 0 4px 12px #00000014;
+  --beemax-shadow-lg: 0 8px 32px #0000001f;
+
+  /* Product panels should remain quieter than marketing surfaces. */
+  --beemax-admin-panel-shadow: 0 8px 24px rgba(11, 24, 48, 0.06);
+}
