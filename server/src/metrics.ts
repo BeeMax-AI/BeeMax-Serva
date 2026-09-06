@@ -1,0 +1,7 @@
+import type { Metrics,Workspace } from '../../shared/domain.ts';
+import { addDays,businessDate } from './dates.ts';
+export function metrics(w:Workspace,start:string,end:string):Metrics {const inRange=(s:string|null)=>!!s&&businessDate(new Date(s))>=start&&businessDate(new Date(s))<=end,created=w.tickets.filter(t=>inRange(t.createdAt)),closed=w.tickets.filter(t=>inRange(t.closedAt)),avg=(v:number[])=>v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;
+ const counts=(values:string[])=>[...new Set(values)].map(name=>({name,value:values.filter(v=>v===name).length})).sort((a,b)=>b.value-a.value);
+ const trend=[];for(let date=start;date<=end;date=addDays(date,1))trend.push({date,created:w.tickets.filter(t=>businessDate(new Date(t.createdAt))===date).length,closed:w.tickets.filter(t=>t.closedAt&&businessDate(new Date(t.closedAt))===date).length});
+ return{total:w.tickets.length,open:w.tickets.filter(t=>t.status!=='CLOSED').length,created:created.length,closed:closed.length,waiting:w.tickets.filter(t=>['DISPATCHED','NO_ACCEPT'].includes(t.status)).length,held:w.tickets.filter(t=>t.status==='ON_HOLD').length,escalated:w.tickets.filter(t=>t.status.startsWith('ESCALATED')).length,avgResponse:avg(created.filter(t=>t.acceptedAt).map(t=>(Date.parse(t.acceptedAt!)-Date.parse(t.createdAt))/60000)),avgResolution:avg(closed.map(t=>(Date.parse(t.closedAt!)-Date.parse(t.createdAt))/60000)),byType:counts(created.map(t=>t.type)),byGroup:counts(created.map(t=>w.groups.find(g=>g.id===t.groupId)?.name||t.groupId)),trend};
+}
