@@ -245,7 +245,22 @@ export interface Workspace {
     updatedAt: string | null;
   };
 }
+export interface QiweConnection {
+  revision: number;
+  tokenSaved: boolean;
+  accountSaved: boolean;
+  passwordSaved: boolean;
+  accountMask: string;
+  updatedAt: string | null;
+  connectionStatus: "unverified";
+  canTest: boolean;
+}
+export interface QiweSaveResult extends QiweConnection {
+  workspaceRevision: number | null;
+  auditEntry: Audit;
+}
 export interface Bootstrap {
+  qiwe?: QiweConnection;
   actor: Actor;
   mode: "local" | "mcp";
   aiConfigured: boolean;

@@ -136,7 +136,7 @@ test("credential writes require owner and plaintext never appears in bootstrap o
   const b = await bootstrap("owner"),
     serialized = JSON.stringify(b);
   assert.equal(b.workspace.credentials.configured, true);
-  assert.equal(b.workspace.credentials.accountMask, "te****");
+  assert.equal(b.workspace.credentials.accountMask, "t****");
   assert.ok(!serialized.includes("secret-test"));
 });
 test("configuration changes survive a separate storage connection", async () => {

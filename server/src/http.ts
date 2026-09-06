@@ -1,3 +1,4 @@
+import { qiweConnection, saveQiweConnection } from "./qiwe.ts";
 import {
   createServer,
   type IncomingMessage,
@@ -147,6 +148,14 @@ export function createApp(
           send(res, 200, { ok: true });
           return;
         }
+        if (pathname === "/api/qiwe/connection") {
+          if (method === "GET") send(res, 200, qiweConnection(store, actor));
+          else if (method === "POST")
+            send(res, 200, saveQiweConnection(store, actor, await body(req)));
+          else
+            throw new AppError(405, "METHOD_NOT_ALLOWED", "不支持此请求方式");
+          return;
+        }
         if (pathname === "/api/commands" && method === "POST") {
           send(
             res,
@@ -256,6 +265,7 @@ export function createApp(
                   channel: "direct" as const,
                 };
           const result: Bootstrap = {
+            qiwe: qiweConnection(store, actor),
             actor,
             mode: provider.mode,
             aiConfigured: capabilities.chat || capabilities.analysis,

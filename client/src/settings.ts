@@ -1,3 +1,4 @@
+import { qiweContent } from "./qiwe.js";
 import { accessContent, connectionContent } from "./mcp.js";
 import type { Plan, Ticket, AnalysisTask } from "../../shared/domain.js";
 import {
@@ -36,7 +37,8 @@ export const tabs = [
   ["parameters", "派单参数"],
   ["access", "群与权限"],
   ["learning", "学习与灰度"],
-  ["connection", "连接设置"],
+  ["connection", "QiWe 连接"],
+  ["mcp", "MCP 数据连接"],
   ["audit", "变更记录"],
 ];
 export function settings() {
@@ -46,7 +48,13 @@ export function settings() {
       "管理业务配置，每次变更保留操作记录。",
       tag(isOwner() ? "owner" : canWrite() ? "运营管理员" : "只读用户"),
     ) +
-    `<div class="tabbar" role="tablist">${tabs.map(([id, name]) => `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}" class="${state.tab === id ? "active" : ""}">${name}</button>`).join("")}</div><section class="panel">${content()}</section>`
+    `<div class="tabbar" role="tablist">${tabs
+      .filter(([id]) => id !== "mcp" || state.boot?.mode === "mcp")
+      .map(
+        ([id, name]) =>
+          `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}" class="${state.tab === id ? "active" : ""}">${name}</button>`,
+      )
+      .join("")}</div><section class="panel">${content()}</section>`
   );
 }
 const auditNames: Record<string, string> = {
@@ -71,8 +79,7 @@ const auditNames: Record<string, string> = {
 };
 function content() {
   const data = w();
-  if (data.integration && state.tab === "connection")
-    return connectionContent();
+  if (data.integration && state.tab === "mcp") return connectionContent();
   if (data.integration && state.tab === "access") return accessContent();
   const matches = (...values: unknown[]) =>
     values.join(" ").toLowerCase().includes(state.query.trim().toLowerCase());
@@ -175,7 +182,7 @@ function content() {
         })
         .join("")}`;
     case "connection":
-      return `<div class="config-title"><div><h2>QiWe 连接凭据</h2><p>由 owner 管理；凭据不返回浏览器。</p></div>${tag(data.credentials.configured ? "已配置" : "待配置", data.credentials.configured)}</div><div class="credential-scope"><div><strong>${isOwner() ? "owner · 可管理凭据" : "当前角色 · 只读配置状态"}</strong><p>${data.credentials.updatedAt ? "更新于 " + fmt(data.credentials.updatedAt) : "尚未保存连接凭据"} · ${state.boot!.mode === "local" ? "本地加密存储，连接接口待接入" : "服务端托管"}</p></div></div>${isOwner() ? `<form id="credential-form" class="credential-form" autocomplete="off">${field("接口 Token", "token", "", "password", 'maxlength="500" autocomplete="new-password" placeholder="留空保留现有值"')}${field("Manager 账号", "account", "", "text", `maxlength="100" placeholder="${esc(data.credentials.accountMask || "输入管理账号")}"`)}${field("Manager 密码", "password", "", "password", 'maxlength="500" autocomplete="new-password" placeholder="留空保留现有值"')}<label class="inline-check"><input id="show-secrets" type="checkbox">显示本次输入</label><div class="credential-footer"><span>保存后清空输入；审计不记录凭据内容。</span><button type="reset" class="button">重置输入</button><button class="button primary">核对并保存</button></div></form>` : `<div class="credential-readonly"><div><span>Token</span><strong>${data.credentials.configured ? "已保存" : "待配置"}</strong></div><div><span>Manager 账号</span><strong>${esc(data.credentials.accountMask || "—")}</strong></div></div>`}`;
+      return qiweContent();
     default:
       return (
         `<div class="config-title"><div><h2>配置与操作记录</h2><p>时间、操作人、目标和变更内容。</p></div></div>` +

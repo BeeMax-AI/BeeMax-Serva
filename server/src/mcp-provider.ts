@@ -1,3 +1,4 @@
+import { qiweAudit } from "./qiwe.ts";
 import { normalizeAnalytics, normalizeAccess } from "./mcp-data.ts";
 import { timelineEvent } from "./mcp-timeline.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -132,9 +133,11 @@ export class McpProvider extends LocalProvider {
       "conversations",
     ] as const)
       (base as any)[key] = metadata[key];
-    base.audit = [...metadata.audit, ...base.audit].sort((a, b) =>
-      b.at.localeCompare(a.at),
-    );
+    base.audit = [
+      ...qiweAudit(this.store, actor.tenantId),
+      ...metadata.audit,
+      ...base.audit,
+    ].sort((a, b) => b.at.localeCompare(a.at));
     base.revision = hash([base.revision, metadata.revision]);
     return base;
   }

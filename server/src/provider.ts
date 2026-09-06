@@ -1,3 +1,4 @@
+import { updateQiweCredentials } from "./qiwe.ts";
 import type {
   Actor,
   Command,
@@ -373,23 +374,7 @@ export class LocalProvider implements DataProvider {
         break;
       }
       case "credentials.save": {
-        requireValue(actor.role === "owner", "仅 owner 可以管理连接凭据", 403);
-        const values = this.store.getSecret(actor.tenantId);
-        let changed = false;
-        for (const field of ["token", "account", "password"])
-          if (d[field] !== undefined && d[field] !== "") {
-            values[field] = text(d[field], field, 500);
-            changed = true;
-          }
-        requireValue(changed, "请填写要更新的凭据");
-        this.store.setSecret(actor.tenantId, values);
-        w.credentials = {
-          configured: !!values.token,
-          accountMask: values.account
-            ? values.account.slice(0, 2) + "****"
-            : "",
-          updatedAt: now,
-        };
+        w.credentials = updateQiweCredentials(this.store, actor, d);
         break;
       }
       case "plan.save": {

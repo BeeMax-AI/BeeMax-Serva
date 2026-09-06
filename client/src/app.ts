@@ -1,3 +1,4 @@
+import type { QiweSaveResult } from "../../shared/domain.js";
 import { pollAnalysisTasks } from "./analysis-tasks.js";
 import { metrics } from "../../shared/metrics.js";
 import {
@@ -715,20 +716,43 @@ document.addEventListener("submit", (e) => {
       toast("请填写需要更新的凭据");
       return;
     }
-    modal(
-      "确认保存连接凭据",
-      "<p>凭据将在后端加密保存，留空字段保留现有值。</p>",
-      {
-        label: "确认保存",
-        run: async () => {
-          await command("credentials.save", d);
-          form.reset();
-          Object.keys(d).forEach((k) => (d[k] = ""));
-          closeModal();
-          toast("凭据已保存，未记录明文内容");
-        },
-      },
-    );
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    )!;
+    if (submit.disabled) return;
+    const identity = state.boot!.actor.id + ":" + state.boot!.actor.tenantId;
+    submit.disabled = true;
+    submit.textContent = "正在保存…";
+    void post<QiweSaveResult>("/qiwe/connection", {
+      ...d,
+      expectedRevision: Number(form.dataset.revision),
+    })
+      .then(({ workspaceRevision, auditEntry, ...qiwe }) => {
+        if (
+          !state.boot ||
+          state.boot.actor.id + ":" + state.boot.actor.tenantId !== identity
+        )
+          return;
+        state.boot.qiwe = qiwe;
+        if (state.boot.mode === "local" && workspaceRevision !== null)
+          state.boot.workspace.revision = workspaceRevision;
+        state.boot.workspace.audit = [
+          auditEntry,
+          ...state.boot.workspace.audit.filter((a) => a.id !== auditEntry.id),
+        ].slice(0, 2000);
+        form.reset();
+        if (state.page === "settings" && state.tab === "connection")
+          renderContent();
+        toast("QiWe 凭据已保存");
+      })
+      .catch((error) =>
+        toast(error instanceof Error ? error.message : "保存失败，请重试"),
+      )
+      .finally(() => {
+        Object.keys(d).forEach((key) => (d[key] = ""));
+        submit.disabled = false;
+        submit.textContent = "保存配置";
+      });
   }
 });
 function syncRefresh() {
@@ -785,3 +809,13 @@ window.setInterval(async () => {
     analysisChanged = false;
   }
 }, 2000);
+
+document.addEventListener("reset", (e) => {
+  const form = e.target as HTMLFormElement;
+  if (form.id === "credential-form")
+    form
+      .querySelectorAll<HTMLInputElement>(
+        'input[name="token"], input[name="password"]',
+      )
+      .forEach((input) => (input.type = "password"));
+});
