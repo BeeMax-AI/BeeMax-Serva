@@ -1,3 +1,4 @@
+import { readConnections, connectionCommand } from "./connections.ts";
 import { qiweConnection, saveQiweConnection } from "./qiwe.ts";
 import {
   createServer,
@@ -148,6 +149,22 @@ export function createApp(
           send(res, 200, { ok: true });
           return;
         }
+        if (pathname === "/api/connections" && method === "GET") {
+          send(res, 200, readConnections(store, actor.tenantId));
+          return;
+        }
+        if (pathname === "/api/connections/commands" && method === "POST") {
+          send(
+            res,
+            200,
+            connectionCommand(
+              store,
+              actor,
+              (await body(req)) as unknown as Command,
+            ),
+          );
+          return;
+        }
         if (pathname === "/api/qiwe/connection") {
           if (method === "GET") send(res, 200, qiweConnection(store, actor));
           else if (method === "POST")
@@ -264,7 +281,12 @@ export function createApp(
                   analysis: aiConfigured(),
                   channel: "direct" as const,
                 };
+          const connections = readConnections(store, actor.tenantId);
+          workspace.audit = [...connections.audit, ...workspace.audit].sort(
+            (a, b) => b.at.localeCompare(a.at),
+          );
           const result: Bootstrap = {
+            connections,
             qiwe: qiweConnection(store, actor),
             actor,
             mode: provider.mode,

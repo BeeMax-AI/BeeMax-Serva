@@ -28,7 +28,7 @@ export class Store {
     this.db = new DatabaseSync(join(directory, "local.sqlite"));
     chmodSync(join(directory, "local.sqlite"), 0o600);
     this.db.exec(
-      `PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspaces(tenant TEXT PRIMARY KEY,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,tenant TEXT NOT NULL,name TEXT NOT NULL,role TEXT NOT NULL,salt TEXT NOT NULL,hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS requests(tenant TEXT NOT NULL,actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(tenant,actor,id)); CREATE TABLE IF NOT EXISTS secrets(tenant TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS qiwe_audit(tenant TEXT PRIMARY KEY,data TEXT NOT NULL);`,
+      `PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspaces(tenant TEXT PRIMARY KEY,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,tenant TEXT NOT NULL,name TEXT NOT NULL,role TEXT NOT NULL,salt TEXT NOT NULL,hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS requests(tenant TEXT NOT NULL,actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(tenant,actor,id)); CREATE TABLE IF NOT EXISTS secrets(tenant TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS qiwe_audit(tenant TEXT PRIMARY KEY,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS wecom_connections(tenant TEXT PRIMARY KEY,data TEXT NOT NULL);`,
     );
   }
   initialize() {

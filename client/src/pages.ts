@@ -1,3 +1,4 @@
+import { connections } from "./connections.js";
 import { remoteActions } from "./mcp.js";
 import { statuses } from "../../shared/domain.js";
 import type { Metrics, Ticket, Report } from "../../shared/domain.js";
@@ -193,12 +194,7 @@ export function staff() {
   );
 }
 export function accounts() {
-  if (w().integration)
-    return (
-      title("企微账号", "连接管理") +
-      empty("当前 MCP 未提供企微实例及主动推送授权接口，待补充接口后开放。")
-    );
-  const rows = w().accounts.filter(
+  const rows = connections().accounts.filter(
     (a) => !state.account || a.id === state.account,
   );
   return (
@@ -209,47 +205,41 @@ export function accounts() {
         button(`${icon("plus")}添加企微账号`, "add-account", true, !canWrite()),
     ) +
     rail([
-      ["账号实例", w().accounts.length, "含待连接实例"],
+      ["账号实例", connections().accounts.length, "已保存的实例配置"],
       [
-        "在线状态",
-        w().accounts.filter((a) => a.status === "online").length,
-        state.boot!.mode === "local" ? "本地样例状态" : "服务端连接状态",
+        "在线实例",
+        connections().accounts.filter((a) => a.status === "online").length,
+        "消息通道待接入",
       ],
       ["连接来源", "QiWe", "企业微信通道"],
-      [
-        "数据模式",
-        state.boot!.mode === "local" ? "本地开发" : "MCP",
-        "独立于真实连接状态",
-      ],
+      ["数据模式", "配置管理", "独立于工单数据源"],
     ]) +
-    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理推送范围与消息记录。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(w().accounts, state.account, "全部实例")}</select></div>${slicePage(
-      rows,
-    )
-      .map(
-        (a) =>
-          `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "未连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>${state.boot!.mode === "local" ? "连接接口待接入" : "Agent 服务"}</small></div><div class="account-fact"><small>主动推送范围</small><strong>${a.groups.length} 个授权群</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">Agent 详情 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
-      )
-      .join("")}${pager(rows.length)}</section>`
+    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理推送范围与消息记录。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(connections().accounts, state.account, "全部实例")}</select></div>${
+      slicePage(rows)
+        .map(
+          (a) =>
+            `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "待连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>企微登录待接入</small></div><div class="account-fact"><small>主动推送范围</small><strong>${a.groups.length} 个已配置群</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">Agent 详情 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
+        )
+        .join("") || empty("暂无账号实例，点击「添加企微账号」开始配置")
+    }${pager(rows.length)}</section><div class="connection-note">实例与推送群配置已独立保存；登录及消息通道待接入。</div>`
   );
 }
 export function agent() {
-  const a = w().accounts.find((a) => a.id === state.agent) || w().accounts[0];
+  const a =
+    connections().accounts.find((a) => a.id === state.agent) ||
+    connections().accounts[0];
   if (!a) return empty("请先添加账号实例");
   state.agent = a.id;
   return (
     `<a class="connection-back text-link" href="#accounts">← 返回企微账号</a>` +
-    title(
-      "Agent 详情",
-      "管理当前账号的主动推送范围。",
-      tag("仅允许已授权群", true),
-    ) +
-    `<div class="agent-identity"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>实例 ID：${esc(a.id)}</small></div></div><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><section class="panel"><div class="config-title"><div><h2>添加主动推送群</h2><p>支持长短会话 ID；名称用于识别。</p></div>${tag(`${a.groups.length} 个已授权`)}</div><form id="whitelist-form" class="whitelist-form"><label>会话 ID（chat_id）<input name="chatId" required maxlength="128" placeholder="填写会话 ID"></label><label>群名称（可选）<input name="name" maxlength="40" placeholder="例如 客服工作群"></label><button class="button primary" ${canWrite() ? "" : "disabled"}>加入白名单</button></form></section><section class="panel authorized-panel"><div class="config-title"><div><h2>已授权群</h2><p>主动推送权限与人员接单权限分别管理。</p></div></div>${
+    title("Agent 详情", "管理当前账号的主动推送范围。", tag("推送配置待同步")) +
+    `<div class="agent-identity"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>实例 ID：${esc(a.id)}</small></div></div><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><section class="panel"><div class="config-title"><div><h2>添加主动推送群</h2><p>支持长短会话 ID；名称用于识别。</p></div>${tag(`${a.groups.length} 个已配置`)}</div><form id="whitelist-form" class="whitelist-form"><label>会话 ID（chat_id）<input name="chatId" required maxlength="128" placeholder="填写会话 ID"></label><label>群名称（可选）<input name="name" maxlength="40" placeholder="例如 客服工作群"></label><button class="button primary" ${canWrite() ? "" : "disabled"}>保存推送群</button></form></section><section class="panel authorized-panel"><div class="config-title"><div><h2>已配置群</h2><p>主动推送名单待通道接入后生效。</p></div><button class="text-link" data-action="push-settings">推送群设置 →</button></div>${
       slicePage(a.groups)
         .map(
           (g) =>
             `<div class="authorized-row"><span class="group-medallion">${icon("chat")}</span><div><strong>${esc(g.name || "未命名群")}</strong><code>${esc(g.id)}</code><small>加入于 ${fmt(g.addedAt)}</small></div><button class="icon-button" aria-label="移除${esc(g.name || g.id)}" data-remove-group="${esc(g.id)}" ${canWrite() ? "" : "disabled"}>${icon("close")}</button></div>`,
         )
-        .join("") || empty("尚未授权任何群")
+        .join("") || empty("尚未配置推送群")
     }${pager(a.groups.length)}</section>`
   );
 }
@@ -259,12 +249,7 @@ export const messageStatuses: Record<string, string> = {
   failed: "发送失败",
 };
 export function messages() {
-  if (w().integration)
-    return (
-      title("消息日志", "运行记录") +
-      empty("当前 MCP 未提供消息收发日志接口，工单流转记录可在工单详情中查看。")
-    );
-  const scoped = w().messages.filter(
+  const scoped = connections().messages.filter(
       (m) => !state.account || m.accountId === state.account,
     ),
     rows = scoped
@@ -282,8 +267,8 @@ export function messages() {
   return (
     title(
       "消息日志",
-      "从会话原文追溯工单与处理结果。",
-      `<label class="connection-auto"><input id="message-auto" type="checkbox">每 15 秒刷新</label>${button(`${icon("refresh")}刷新`, "refresh")}`,
+      "查看各实例的入站、出站消息与处理状态。",
+      `<label class="connection-auto"><input id="message-auto" type="checkbox">每 15 秒刷新</label>${button(`${icon("refresh")}刷新`, "refresh-connections")}`,
     ) +
     rail([
       ["实例日志", scoped.length, "当前实例范围"],
@@ -303,7 +288,7 @@ export function messages() {
         "失败 / 等待回调",
       ],
     ]) +
-    `<div class="connection-filters"><label class="connection-search">${icon("search")}<input id="search" aria-label="搜索消息" placeholder="搜索消息、联系人、会话 ID 或工单" value="${esc(state.query)}"></label><select data-filter="account" aria-label="日志实例">${options(w().accounts, state.account, "全部实例")}</select><select data-filter="direction" aria-label="消息方向">${options(
+    `<div class="connection-filters"><label class="connection-search">${icon("search")}<input id="search" aria-label="搜索消息" placeholder="搜索消息、联系人、会话 ID 或工单" value="${esc(state.query)}"></label><select data-filter="account" aria-label="日志实例">${options(connections().accounts, state.account, "全部实例")}</select><select data-filter="direction" aria-label="消息方向">${options(
       [
         { id: "in", name: "入站" },
         { id: "out", name: "出站" },
@@ -326,10 +311,10 @@ export function messages() {
       ["时间 / 实例", "方向 / 会话", "消息内容", "状态", "操作"],
       slicePage(rows).map(
         (m) =>
-          `<tr><td>${fmt(m.at)}<small>${esc(w().accounts.find((a) => a.id === m.accountId)?.name)}</small></td><td>${tag(m.direction === "in" ? "↙ 入站" : "↗ 出站", m.direction === "out")}<small>${esc(m.contact)}</small></td><td><div class="message-preview"><p>${esc(m.content)}</p></div>${m.ticketId ? `<button class="text-link" data-ticket="${esc(m.ticketId)}">关联工单 ${esc(m.ticketId)} →</button>` : ""}</td><td>${tag(messageStatuses[m.status], m.status === "completed")}</td><td><button class="text-link" data-message="${esc(m.id)}">详情</button></td></tr>`,
+          `<tr><td>${fmt(m.at)}<small>${esc(connections().accounts.find((a) => a.id === m.accountId)?.name)}</small></td><td>${tag(m.direction === "in" ? "↙ 入站" : "↗ 出站", m.direction === "out")}<small>${esc(m.contact)}</small></td><td><div class="message-preview"><p>${esc(m.content)}</p></div>${m.ticketId ? `<button class="text-link" data-ticket="${esc(m.ticketId)}">关联工单 ${esc(m.ticketId)} →</button>` : ""}</td><td>${tag(messageStatuses[m.status], m.status === "completed")}</td><td><button class="text-link" data-message="${esc(m.id)}">详情</button></td></tr>`,
       ),
       "message-table",
-    )}${pager(rows.length)}</section><div class="connection-note">日志状态表示通道结果，工单状态请查看关联工单。</div>`
+    )}${pager(rows.length)}</section><div class="connection-note">消息通道尚未接入，暂无真实收发日志。筛选与详情功能已就绪。</div>`
   );
 }
 export function insights() {

@@ -259,7 +259,16 @@ export interface QiweSaveResult extends QiweConnection {
   workspaceRevision: number | null;
   auditEntry: Audit;
 }
+export interface ConnectionWorkspace {
+  revision: number;
+  accounts: Account[];
+  messages: Message[];
+  audit: Audit[];
+  updatedAt: string | null;
+  channelStatus: "not_connected";
+}
 export interface Bootstrap {
+  connections?: ConnectionWorkspace;
   qiwe?: QiweConnection;
   actor: Actor;
   mode: "local" | "mcp";

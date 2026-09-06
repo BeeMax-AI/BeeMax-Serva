@@ -19,5 +19,5 @@ export function qiweContent() {
   </form>`
       : `<div class="qiwe-readonly">当前账号可查看配置状态；修改凭据请使用平台管理员账号。</div>`
   }
-  <div class="qiwe-test"><div><strong>连接检测</strong><p>尚未接入 QiWe 检测接口。凭据保存后，连接状态仍为未验证。</p></div><button class="button" disabled title="等待接入 QiWe 检测接口">检测连接</button></div>`;
+  <div class="qiwe-test"><div><strong>连接检测</strong><p>尚未接入 QiWe 检测接口。凭据保存后，连接状态仍为未验证。</p></div><button class="button" disabled title="等待接入 QiWe 检测接口">检测连接</button></div><div class="panel-footer"><a class="text-link" href="#accounts">管理企微账号 →</a><span>在账号页面配置实例与推送群。</span></div>`;
 }

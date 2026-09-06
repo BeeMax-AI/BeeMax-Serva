@@ -1,3 +1,4 @@
+import { connections, confirmConnectionCommand } from "./connections.js";
 import { qiweContent } from "./qiwe.js";
 import { accessContent, connectionContent } from "./mcp.js";
 import type { Plan, Ticket, AnalysisTask } from "../../shared/domain.js";
@@ -36,6 +37,7 @@ export const tabs = [
   ["roster", "排班人员"],
   ["parameters", "派单参数"],
   ["access", "群与权限"],
+  ["push", "推送群设置"],
   ["learning", "学习与灰度"],
   ["connection", "QiWe 连接"],
   ["mcp", "MCP 数据连接"],
@@ -163,14 +165,15 @@ function content() {
         )
         .join("")}`;
     case "access":
-      return `<div class="config-title"><div><h2>群与人员权限</h2><p>主动推送按实例授权。人员在岗与档位在排班中管理。</p></div></div>${slicePage(
-        data.accounts,
-      )
-        .map(
-          (a) =>
-            `<div class="config-row"><div><h3>${esc(a.name)}</h3><p>${a.groups.length} 个已授权群</p></div><button class="button" data-agent="${a.id}">管理授权群 →</button></div>`,
-        )
-        .join("")}${pager(data.accounts.length)}`;
+    case "push":
+      return `<div class="config-title"><div><h2>主动推送群设置</h2><p>按企微实例管理推送范围；消息通道接入后同步生效。</p></div><button class="button" data-action="add-account" ${canWrite() ? "" : "disabled"}>添加企微账号</button></div>${
+        slicePage(connections().accounts)
+          .map(
+            (a) =>
+              `<div class="config-row"><div><h3>${esc(a.name)}</h3><p>${a.groups.length} 个已配置群</p></div><button class="button" data-agent="${esc(a.id)}">管理推送群 →</button></div>`,
+          )
+          .join("") || empty("暂无账号实例，请先添加企微账号")
+      }${pager(connections().accounts.length)}`;
     case "learning":
       return `<div class="config-title"><div><h2>学习与灰度</h2><p>修改后由后端保存配置。</p></div></div>${[
         ["autoApply", "转单学习自动应用"],
@@ -343,7 +346,8 @@ export function editParameters() {
   );
 }
 export function editAccount(id = "") {
-  const a = w().accounts.find((a) => a.id === id);
+  const a = connections().accounts.find((a) => a.id === id);
+  const revision = connections().revision;
   modal(
     a ? "管理实例" : "添加企微账号",
     field(
@@ -360,16 +364,17 @@ export function editAccount(id = "") {
         "text",
         'required maxlength="60"',
       ) +
-      `<div class="note-band">这里只管理实例信息，连接状态由通道服务决定。${state.boot!.mode === "local" ? "当前尚未接入企微登录。" : ""}</div>`,
+      `<div class="note-band">保存实例信息后，可继续配置推送群。企微登录接口尚未接入。</div>`,
     {
       label: "预览变更",
       run: (form) => {
         const d = formData(form);
-        confirmCommand(
+        confirmConnectionCommand(
           "确认实例信息",
           `${d.name} · ${d.company}`,
           "account.save",
           { ...d, ...(a ? { id: a.id } : {}) },
+          revision,
         );
       },
     },

@@ -1,3 +1,4 @@
+import { preserveConnections } from "./bootstrap-state.js";
 import { pageWindow } from "../../shared/pagination.js";
 import type { Bootstrap, Metrics, Ticket } from "../../shared/domain.js";
 import { statuses } from "../../shared/domain.js";
@@ -187,7 +188,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const post = <T>(path: string, data: unknown, signal?: AbortSignal) =>
   api<T>(path, { method: "POST", body: JSON.stringify(data), signal });
 export async function refresh() {
-  state.boot = await api<Bootstrap>("/bootstrap");
+  const previous = state.boot;
+  const incoming = await api<Bootstrap>("/bootstrap");
+  if (
+    previous &&
+    (!state.boot ||
+      previous.actor.id !== state.boot.actor.id ||
+      previous.actor.tenantId !== state.boot.actor.tenantId)
+  )
+    return;
+  preserveConnections(state.boot, incoming);
+  state.boot = incoming;
   if (!state.date) state.date = state.boot.today;
 }
 export async function command(

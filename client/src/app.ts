@@ -1,3 +1,9 @@
+import { preserveConnections } from "./bootstrap-state.js";
+import {
+  connections,
+  confirmConnectionCommand,
+  refreshConnections,
+} from "./connections.js";
 import type { QiweSaveResult } from "../../shared/domain.js";
 import { pollAnalysisTasks } from "./analysis-tasks.js";
 import { metrics } from "../../shared/metrics.js";
@@ -334,6 +340,7 @@ async function runLoad(automatic = false): Promise<SyncOutcome> {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
+    preserveConnections(state.boot, boot);
     state.boot = boot;
     state.metrics = freshMetrics;
     if (!state.date) state.date = boot.today;
@@ -539,14 +546,15 @@ async function handleClick(e: MouseEvent) {
     );
   }
   if (b.dataset.removeGroup)
-    confirmCommand(
+    confirmConnectionCommand(
       "移除主动推送授权",
-      `将移除群 ${b.dataset.removeGroup} 的主动推送权限，保留历史消息。`,
+      `将移除群 ${b.dataset.removeGroup} 的推送配置，保留历史消息。`,
       "group.remove",
       { accountId: state.agent, chatId: b.dataset.removeGroup },
     );
   if (b.dataset.message) {
-    const m = w().messages.find((m) => m.id === b.dataset.message)!;
+    const m = connections().messages.find((m) => m.id === b.dataset.message);
+    if (!m) return;
     modal(
       "消息详情",
       `<div class="modal-summary">消息 ID：${esc(m.id)}<br>会话：${esc(m.contact)}<br>chat_id：${esc(m.chatId)}<br>状态：${pages.messageStatuses[m.status]}<br>时间：${fmt(m.at)}</div><p class="message-text">${esc(m.content)}</p>${m.error ? `<div class="note-band">${esc(m.error)}</div>` : ""}${m.ticketId ? `<button type="button" class="button" data-ticket="${esc(m.ticketId)}">查看工单 ${esc(m.ticketId)}</button>` : ""}`,
@@ -598,6 +606,11 @@ async function handleClick(e: MouseEvent) {
     "roster-today": () => editRoster(),
     "roster-import": () => editRoster(true),
     "add-account": () => editAccount(),
+    "refresh-connections": () => refreshConnections(),
+    "push-settings": () => {
+      state.tab = "push";
+      navigate("settings");
+    },
     "add-route": () => editRoute(),
     "add-person": () => editPerson(),
     parameters: editParameters,
@@ -702,8 +715,8 @@ document.addEventListener("submit", (e) => {
   if (form.id === "whitelist-form") {
     e.preventDefault();
     const d = formData(form);
-    confirmCommand(
-      "确认添加授权群",
+    confirmConnectionCommand(
+      "确认保存推送群",
       `${d.name || "未命名群"} · ${d.chatId}`,
       "group.add",
       { ...d, accountId: state.agent },
@@ -760,7 +773,9 @@ function syncRefresh() {
   if (messageAuto && state.page === "messages")
     refreshTimer = window.setInterval(() => {
       if (!document.querySelector<HTMLDialogElement>("#modal")!.open)
-        void load();
+        void refreshConnections().catch(() =>
+          toast("消息记录刷新失败，请稍后重试"),
+        );
     }, 15000);
 }
 window.addEventListener("hashchange", () => {
@@ -777,6 +792,15 @@ window.addEventListener("hashchange", () => {
   showLoadedPage();
   syncRefresh();
   window.scrollTo(0, 0);
+});
+window.addEventListener("connections-updated", () => {
+  if (!state.boot) return;
+  if (
+    ["accounts", "agent", "messages"].includes(state.page) ||
+    (state.page === "settings" &&
+      ["push", "access", "audit"].includes(state.tab))
+  )
+    renderContent();
 });
 window.addEventListener("data-updated", () => {
   ++loadSequence;
