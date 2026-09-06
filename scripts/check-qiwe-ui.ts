@@ -27,9 +27,9 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (e: Error) => errors.push(e.message));
   const cookie = store.createSession({
-    id: "owner",
-    name: "平台管理员",
-    role: "owner",
+    id: "admin",
+    name: "运营管理员",
+    role: "admin",
     tenantId: "demo",
   });
   await page
@@ -66,7 +66,11 @@ try {
   await page.locator('[name="token"]').fill("ui-fake-token");
   await page.locator('[name="account"]').fill("manager-ui");
   await page.locator('[name="password"]').fill(" ui-fake-password ");
-  await page.getByLabel("显示本次输入").check();
+  await page.getByRole("button", { name: "显示密码", exact: true }).click();
+  assert.equal(
+    await page.locator('[name="token"]').getAttribute("type"),
+    "password",
+  );
   assert.equal(
     await page.locator('[name="password"]').getAttribute("type"),
     "text",

@@ -40,10 +40,6 @@ for (const mode of ["local", "mcp"])
     try {
       assert.equal((await req("none")).status, 401);
       assert.equal(
-        (await req("admin", { token: "test", expectedRevision: 0 })).status,
-        403,
-      );
-      assert.equal(
         (await req("viewer", { token: "test", expectedRevision: 0 })).status,
         403,
       );
@@ -57,7 +53,7 @@ for (const mode of ["local", "mcp"])
         ).status,
         403,
       );
-      const saved = await req("owner", {
+      const saved = await req("admin", {
         token: "qiwe-secret-token",
         account: "manager-account",
         password: " password with spaces ",

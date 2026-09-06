@@ -116,11 +116,11 @@ test("viewer cannot write even if it submits owner in the payload", async () => 
   );
   assert.equal(r.status, 403);
 });
-test("credential writes require owner and plaintext never appears in bootstrap or audit", async () => {
+test("credential writes allow admins, reject viewers and never expose plaintext", async () => {
   const denied = await write(
     "credentials.save",
     { token: "secret-test" },
-    "admin",
+    "viewer",
   );
   assert.equal(denied.status, 403);
   const saved = await write(
@@ -130,7 +130,7 @@ test("credential writes require owner and plaintext never appears in bootstrap o
       password: "secret-test-password",
       account: "test-owner",
     },
-    "owner",
+    "admin",
   );
   assert.equal(saved.status, 200);
   const b = await bootstrap("owner"),

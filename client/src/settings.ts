@@ -56,7 +56,9 @@ export function settings() {
         ([id, name]) =>
           `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}" class="${state.tab === id ? "active" : ""}">${name}</button>`,
       )
-      .join("")}</div><section class="panel">${content()}</section>`
+      .join(
+        "",
+      )}</div><section class="panel ${state.tab === "connection" ? "qiwe-panel" : ""}">${content()}</section>`
   );
 }
 const auditNames: Record<string, string> = {

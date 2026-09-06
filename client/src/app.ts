@@ -1,3 +1,4 @@
+import { toggleQiweSecret, resetQiweSecrets } from "./qiwe.js";
 import { preserveConnections } from "./bootstrap-state.js";
 import {
   connections,
@@ -485,6 +486,10 @@ async function handleClick(e: MouseEvent) {
     renderContent();
     return;
   }
+  if (b.dataset.qiweSecret) {
+    toggleQiweSecret(b as HTMLButtonElement);
+    return;
+  }
   if (b.dataset.agent) {
     state.agent = b.dataset.agent;
     navigate("agent");
@@ -699,12 +704,6 @@ document.addEventListener("change", (e) => {
       .querySelector<HTMLElement>(`[data-filter="${key}"]`)
       ?.focus({ preventScroll: true });
   }
-  if (input.id === "show-secrets")
-    document
-      .querySelectorAll<HTMLInputElement>(
-        '#credential-form input[name="token"],#credential-form input[name="password"]',
-      )
-      .forEach((el) => (el.type = input.checked ? "text" : "password"));
   if (input.id === "message-auto") {
     messageAuto = input.checked;
     syncRefresh();
@@ -836,10 +835,5 @@ window.setInterval(async () => {
 
 document.addEventListener("reset", (e) => {
   const form = e.target as HTMLFormElement;
-  if (form.id === "credential-form")
-    form
-      .querySelectorAll<HTMLInputElement>(
-        'input[name="token"], input[name="password"]',
-      )
-      .forEach((input) => (input.type = "password"));
+  if (form.id === "credential-form") resetQiweSecrets(form);
 });

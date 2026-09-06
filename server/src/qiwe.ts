@@ -1,3 +1,4 @@
+import { canManageQiwe } from "../../shared/domain.ts";
 import type { Actor, Audit, QiweConnection } from "../../shared/domain.ts";
 import type { Store } from "./store.ts";
 import { requireValue } from "./errors.ts";
@@ -25,7 +26,7 @@ export function saveQiweConnection(
   actor: Actor,
   data: Record<string, unknown>,
 ) {
-  requireValue(actor.role === "owner", "仅平台管理员可以管理 QiWe 凭据", 403);
+  requireValue(canManageQiwe(actor.role), "当前账号无权修改 QiWe 凭据", 403);
   const current = qiweConnection(store, actor);
   requireValue(
     Number.isSafeInteger(data.expectedRevision) &&
@@ -79,7 +80,7 @@ export function updateQiweCredentials(
   actor: Actor,
   data: Record<string, unknown>,
 ) {
-  requireValue(actor.role === "owner", "仅平台管理员可以管理 QiWe 凭据", 403);
+  requireValue(canManageQiwe(actor.role), "当前账号无权修改 QiWe 凭据", 403);
   const values = store.getSecret(actor.tenantId);
   let changed = false;
   for (const field of ["token", "account", "password"] as const) {

@@ -1,4 +1,6 @@
 export type Role = "owner" | "admin" | "viewer";
+export const canManageQiwe = (role: Role) =>
+  role === "owner" || role === "admin";
 export interface Actor {
   id: string;
   name: string;
