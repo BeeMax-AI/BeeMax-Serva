@@ -1,3 +1,4 @@
+import { remoteActions } from "./mcp.js";
 import { statuses } from "../../shared/domain.js";
 import type { Metrics, Ticket } from "../../shared/domain.js";
 import {
@@ -103,7 +104,7 @@ export function overview() {
     title(
       "每一单，都有着落。",
       `${state.boot!.actor.name}，欢迎回来。${state.boot!.today} · ${w().tenant.name}`,
-      button("导出简报", "export"),
+      remoteActions() + button("导出简报", "export"),
     ) +
     rail([
       ["今日新单", m.created, "按创建时间"],
@@ -132,7 +133,7 @@ export function trends() {
     title(
       "看见趋势，提前行动。",
       "从新建、闭环与积压，了解运营节奏的变化。",
-      button("导出简报", "export"),
+      remoteActions("trends") + button("导出简报", "export"),
     ) +
     trendPanel() +
     `<div class="section-grid"><section class="panel"><div class="panel-heading"><h2>期间工单类型</h2></div>${bars(state.metrics!.byType)}</section><section class="panel"><div class="panel-heading"><h2>期间小组分布</h2></div>${bars(state.metrics!.byGroup)}</section></div>`
@@ -177,7 +178,7 @@ export function staff() {
     title(
       "合理分工，从看见负载开始。",
       "基于人员配置与工单时间戳计算。",
-      button("管理排班", "roster"),
+      remoteActions("staff") + button("管理排班", "roster"),
     ) +
     `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}` +
     rail([
@@ -337,6 +338,7 @@ export function insights() {
       "AI智能分析",
       "结合工单、处理记录与历史建议，持续复盘服务运营。",
       button(`管理全部计划（${w().plans.length}）`, "plans") +
+        remoteActions() +
         button(`${icon("spark")}立即分析`, "analyze", true, !canWrite()),
     ) +
     `<div class="note-band">${icon("spark")} ${state.boot!.aiConfigured ? "模型已配置 · 分析基于当前租户的数据" : "模型待配置 · 当前提供数据汇总与规则建议"}<br>报告保存在工作台，业务操作仍需人工确认。</div><section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()

@@ -574,3 +574,28 @@ aside.panel {
 .report-history > .connection-pagination {
   grid-column: 1 / -1;
 }
+
+/* Remote business queries retain their source scope and bounded list height. */
+.remote-analytics {
+  width: min(1080px, calc(100vw - 32px));
+  max-width: 1080px;
+}
+.remote-query-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.remote-query-controls label {
+  flex: 1 1 180px;
+}
+.remote-table {
+  max-height: 52vh;
+  overflow: auto;
+}
+.remote-report-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 60vh;
+  overflow: auto;
+  line-height: 1.8;
+}

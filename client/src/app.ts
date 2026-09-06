@@ -1,3 +1,11 @@
+import {
+  queryAnalytics,
+  queryReport,
+  showScheduleRules,
+  editRoster,
+  editRosterPerson,
+  editAccess,
+} from "./mcp.js";
 import type { Metrics } from "../../shared/domain.js";
 import {
   state,
@@ -247,10 +255,31 @@ async function handleClick(e: MouseEvent) {
   if (b.dataset.editAccount) editAccount(b.dataset.editAccount);
   if (b.dataset.route) editRoute(b.dataset.route);
   if (b.dataset.deleteRoute)
-    confirmCommand("删除路由规则", "删除后不再使用此规则。", "route.delete", {
-      id: b.dataset.deleteRoute,
-    });
+    confirmCommand(
+      "删除路由规则",
+      w().integration
+        ? "移除关键词规则，或撤销类型覆盖并恢复基础路由；会立即生效。"
+        : "删除后不再使用此规则。",
+      "route.delete",
+      {
+        id: b.dataset.deleteRoute,
+      },
+    );
   if (b.dataset.person) editPerson(b.dataset.person);
+  if (b.dataset.rosterPerson) editRosterPerson(b.dataset.rosterPerson);
+  if (b.dataset.accessPolicy) editAccess(b.dataset.accessPolicy, true);
+  if (b.dataset.accessAdd) editAccess(b.dataset.accessAdd);
+  if (b.dataset.accessRemove)
+    confirmCommand(
+      "移除私聊白名单用户",
+      `${b.dataset.accessRemove} 将移出 ${b.dataset.channel === "wecom" ? "企微" : "飞书"} 白名单；渠道服务会重启。`,
+      "access.save",
+      {
+        channel: b.dataset.channel,
+        action: "remove_dm_allow",
+        userId: b.dataset.accessRemove,
+      },
+    );
   if (b.dataset.plan) editPlan(b.dataset.plan);
   if (b.dataset.deletePlan)
     confirmCommand(
@@ -317,6 +346,13 @@ async function handleClick(e: MouseEvent) {
       );
   }
   const actions: Record<string, () => unknown> = {
+    "remote-analytics-overview": () => queryAnalytics(),
+    "remote-analytics-trends": () => queryAnalytics("trends"),
+    "remote-analytics-staff": () => queryAnalytics("staff"),
+    "remote-report": queryReport,
+    "roster-rules": showScheduleRules,
+    "roster-today": () => editRoster(),
+    "roster-import": () => editRoster(true),
     "add-account": () => editAccount(),
     "add-route": () => editRoute(),
     "add-person": () => editPerson(),
@@ -353,7 +389,7 @@ async function handleClick(e: MouseEvent) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
   };
-  if (a) actions[a]?.();
+  if (a) await actions[a]?.();
 }
 document.addEventListener("click", (e) => {
   void handleClick(e).catch((error) =>

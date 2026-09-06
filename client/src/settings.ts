@@ -1,3 +1,4 @@
+import { accessContent, connectionContent } from "./mcp.js";
 import type { Plan, Ticket } from "../../shared/domain.js";
 import {
   state,
@@ -53,6 +54,10 @@ const auditNames: Record<string, string> = {
   "route.save": "保存路由",
   "route.delete": "删除路由",
   "person.save": "更新人员",
+  "roster.person.save": "调整默认档位",
+  "roster.today": "设置今日当班",
+  "roster.import": "导入排班",
+  "access.save": "调整渠道访问权限",
   "parameters.save": "调整参数",
   "learning.save": "学习与灰度",
   "account.save": "保存实例",
@@ -66,8 +71,9 @@ const auditNames: Record<string, string> = {
 };
 function content() {
   const data = w();
-  if (data.integration && ["access", "connection"].includes(state.tab))
-    return `<div class="config-title"><div><h2>${state.tab === "connection" ? "MCP 数据连接" : "主动推送权限"}</h2><p>${state.tab === "connection" ? "已通过服务端连接 MCP；凭据不返回浏览器。QiWe 凭据管理接口尚未提供。" : "当前 MCP 未提供实例白名单接口，路由群不等同于主动推送授权群。"}</p></div></div>`;
+  if (data.integration && state.tab === "connection")
+    return connectionContent();
+  if (data.integration && state.tab === "access") return accessContent();
   const matches = (...values: unknown[]) =>
     values.join(" ").toLowerCase().includes(state.query.trim().toLowerCase());
   const routes = data.routes.filter(
@@ -99,25 +105,25 @@ function content() {
   switch (state.tab) {
     case "routing":
       return (
-        `<div class="config-title"><div><h2>路由规则</h2><p>按问题类型与关键词，找到合适的处理小组。</p></div>${button("新增规则", "add-route", true, !canWrite("route.save"))}</div>` +
+        `<div class="config-title"><div><h2>路由规则</h2><p>按问题类型与关键词，找到合适的处理小组。</p></div>${button("新增规则", "add-route", true, !(canWrite("route.save") || canWrite("route.save.type") || canWrite("route.save.subject")))}</div>` +
         (data.integration
-          ? `<div class="note-band">路由来自远端生效配置；当前接口仅提供读取。</div>`
+          ? `<div class="note-band">类型路由按问题类型分派，关键词路由优先匹配。移除类型覆盖后恢复基础配置。</div>`
           : "") +
         filterBar("搜索类型或关键词", true) +
         table(
           ["问题类型", "关键词", "处理小组", "来源", "操作"],
           slicePage(routes).map(
             (r) =>
-              `<tr><td>${esc(r.type)}</td><td>${esc(r.keywords)}</td><td>${esc(groupName(r.groupId))}</td><td>${tag(r.source)}</td><td><button class="text-link" data-route="${esc(r.id)}" ${canWrite("route.save") ? "" : "disabled"}>编辑</button> <button class="text-link" data-delete-route="${esc(r.id)}" ${canWrite("route.delete") ? "" : "disabled"}>删除</button></td></tr>`,
+              `<tr><td>${esc(r.type)}</td><td>${esc(r.keywords)}</td><td>${esc(groupName(r.groupId))}</td><td>${tag(r.source)}</td><td><button class="text-link" data-route="${esc(r.id)}" ${canWrite(data.integration ? "route.save." + (r.id.startsWith("subject:") ? "subject" : "type") : "route.save") ? "" : "disabled"}>编辑</button> <button class="text-link" data-delete-route="${esc(r.id)}" ${canWrite(data.integration ? "route.delete." + (r.id.startsWith("subject:") ? "subject" : "type") : "route.delete") && (!data.integration || r.id.startsWith("subject:") || r.source === "学习覆盖") ? "" : "disabled"}>删除</button></td></tr>`,
           ),
         ) +
         pager(routes.length)
       );
     case "roster":
       return (
-        `<div class="config-title"><div><h2>人员与默认排班</h2><p>${data.integration ? "按小组和档位查看人员与默认排班。" : "按小组、档位和在岗状态配置接单人员。"}</p></div>${data.integration ? tag("仅查看") : button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
+        `<div class="config-title"><div><h2>人员与默认排班</h2><p>${data.integration ? "按小组和档位查看人员与默认排班。" : "按小组、档位和在岗状态配置接单人员。"}</p></div>${data.integration ? `<div>${button("楼栋与时段", "roster-rules")} ${button("今日当班", "roster-today", false, !canWrite("roster.today"))} ${button("导入排班", "roster-import", false, !canWrite("roster.import"))}</div>` : button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
         (data.integration
-          ? `<div class="note-band">${esc(data.integration.rosterNote)} 当前接口仅支持读取。</div>`
+          ? `<div class="note-band">${esc(data.integration.rosterNote)} 默认名单支持调整档位；今日当班和排班原文分别设置。</div>`
           : "") +
         filterBar("搜索姓名或小组", true, true) +
         table(
@@ -126,11 +132,11 @@ function content() {
             "小组",
             "档位",
             data.integration ? "排班说明" : "在岗",
-            ...(data.integration ? [] : ["操作"]),
+            "操作",
           ],
           slicePage(people).map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? "" : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? `<td>${p.defaultTier && p.rosterUserId ? `<button class="text-link" data-roster-person="${esc(p.id)}" ${canWrite("roster.person.save") ? "" : "disabled"}>调整默认档位</button>` : "—"}</td>` : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
           ),
         ) +
         pager(people.length)
@@ -187,6 +193,40 @@ function content() {
 }
 export function editRoute(id = "") {
   const r = w().routes.find((r) => r.id === id);
+  if (w().integration) {
+    const kind = r?.id.startsWith("subject:") ? "subject" : "type";
+    modal(
+      r ? "编辑路由规则" : "新增路由规则",
+      `<label>规则类型<select name="kind" ${r ? "disabled" : ""}>${options(
+        [
+          { id: "type", name: "问题类型" },
+          { id: "subject", name: "内容关键词" },
+        ].filter((k) => canWrite("route.save." + k.id)),
+        kind,
+      )}</select></label>${field("匹配内容", "match", r ? (kind === "type" ? r.type : r.keywords) : "", "text", 'required maxlength="300" ' + (r ? "readonly" : ""))}<label>处理小组<select name="groupId">${options(w().groups, r?.groupId)}</select></label><p>一个规则对应一个类型或一个关键词。关键词先于类型匹配，保存后实时生效。</p>`,
+      {
+        label: "预览变更",
+        run: (form) => {
+          const d = formData(form),
+            selected = r ? kind : d.kind;
+          confirmCommand(
+            "确认路由变更",
+            `${selected === "type" ? "类型" : "关键词"}：${d.match} → ${groupName(d.groupId)}`,
+            "route.save",
+            {
+              kind: selected,
+              ...(r ? { id: r.id } : {}),
+              groupId: d.groupId,
+              ...(selected === "type"
+                ? { type: d.match }
+                : { keywords: d.match }),
+            },
+          );
+        },
+      },
+    );
+    return;
+  }
   modal(
     r ? "编辑路由规则" : "新增路由规则",
     field(

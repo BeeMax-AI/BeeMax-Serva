@@ -182,6 +182,23 @@ export function createApp(
           send(res, 200, await analysis.chat(actor, await body(req)));
           return;
         }
+        if (pathname.startsWith("/api/mcp/") && method === "GET") {
+          requireValue(
+            provider instanceof McpProvider,
+            "当前没有 MCP 数据连接",
+            503,
+          );
+          send(
+            res,
+            200,
+            await provider.query(
+              actor,
+              pathname.slice("/api/mcp/".length),
+              url.searchParams,
+            ),
+          );
+          return;
+        }
         const w = await provider.read(actor);
         if (pathname === "/api/bootstrap" && method === "GET") {
           const { conversations, ...workspace } = w;

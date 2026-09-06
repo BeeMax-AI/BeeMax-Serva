@@ -15,7 +15,7 @@ const actor: Actor = {
   role: "admin",
   tenantId: "test",
 };
-async function fixture(t: any, sse = false) {
+async function fixture(t: any, sse = false, expanded = false) {
   const dir = mkdtempSync(join(tmpdir(), "qf-mcp-")),
     store = new Store(dir);
   const rows: any[] = [
@@ -33,6 +33,49 @@ async function fixture(t: any, sse = false) {
     },
   ];
   const calls: any[] = [];
+  const extraTools = expanded
+    ? [
+        "get_analytics",
+        "get_report",
+        "get_whitelist",
+        "set_whitelist",
+        "list_config_changes",
+        "set_roster",
+        "set_on_duty_today",
+        "ingest_roster_text",
+        "set_routing_rule",
+        "clear_routing_rule",
+        "set_subject_rule",
+        "clear_subject_rule",
+      ]
+    : [];
+  const rosterDoc = {
+    default: {
+      service: {
+        l1: [{ name: "测试人员", userid: "person1", extra: "preserve" }],
+        l2: [{ name: "其他人员", userid: "person2" }],
+      },
+    },
+    byDate: {
+      "2026-09-06": {
+        service: { l2: [{ name: "其他人员", userid: "person2" }] },
+      },
+    },
+    specialists: { wifi: ["specialist"] },
+    buildingRouting: [
+      {
+        group: "service",
+        date: "2026-09-06",
+        allBuildings: [
+          {
+            from: "08:00",
+            to: "18:00",
+            staff: [{ name: "测试人员", userid: "person1" }],
+          },
+        ],
+      },
+    ],
+  };
   let failing = false,
     writeFails = false;
   const server = createServer(async (req, res) => {
@@ -46,6 +89,7 @@ async function fixture(t: any, sse = false) {
       return;
     }
     const names = [
+      ...extraTools,
       "list_tickets",
       "ticket_stats",
       "get_roster",
@@ -85,17 +129,78 @@ async function fixture(t: any, sse = false) {
           open: rows.filter((r) => r.status !== "CLOSED").length,
         };
       else if (name === "get_roster")
-        value = {
-          default: {
-            service: { l1: [{ name: "测试人员", userid: "person1" }] },
-          },
-        };
+        value = expanded
+          ? rosterDoc
+          : {
+              default: {
+                service: { l1: [{ name: "测试人员", userid: "person1" }] },
+              },
+            };
       else if (name === "get_routing_rules")
         value = {
           effective: { 咨询: "service" },
           learned: { subjectRules: [] },
         };
-      else if (name === "get_config")
+      else if (name === "get_whitelist")
+        value = {
+          wecom: {
+            dmPolicy: "allowlist",
+            dmAllowFrom: ["allowed"],
+            groupPolicy: "open",
+            groups: { chat1: { name: "群名称", mode: "mention" } },
+          },
+        };
+      else if (name === "list_config_changes")
+        value = [
+          {
+            ts: 1788673235152,
+            by: "admin",
+            op: "set",
+            path: "credentials.token",
+            value: "never-expose",
+          },
+        ];
+      else if (name === "get_report")
+        value = {
+          day: "2026-09-05",
+          text: "业务日报 <script>unsafe</script>",
+          summary: { total: 5 },
+        };
+      else if (name === "get_analytics") {
+        const period = {
+          created: 10,
+          closed: 8,
+          noAccept: 1,
+          avgRespMin: 3,
+          avgResoMin: null,
+          completionRate: 80,
+        };
+        value = {
+          generated_at: 1788673235152,
+          overview: {
+            today: "2026-09-06",
+            total_tickets: 10000,
+            today_stats: period,
+            yesterday_stats: period,
+            lastweek_stats: period,
+          },
+          trends: {
+            series: [{ key: "2026-09-06", created: 10, closed: 8, backlog: 2 }],
+          },
+          staff: {
+            staff: [
+              {
+                name: "测试人员",
+                accepted: 5,
+                closed: 4,
+                share: 50,
+                avgRespMin: null,
+                avgHandleMin: 12,
+              },
+            ],
+          },
+        };
+      } else if (name === "get_config")
         value = (
           {
             groups: { service: { name: "客服沟通群" } },
@@ -157,6 +262,8 @@ async function fixture(t: any, sse = false) {
     config,
     calls,
     rows,
+    extraTools,
+    rosterDoc,
     setFail: () => (failing = true),
     setWriteFail: () => (writeFails = true),
   };
@@ -385,5 +492,283 @@ test("MCP timeline translates reminder events and timestamps into readable Chine
   assert.doesNotMatch(
     JSON.stringify(ticket.events),
     /internal-session|remind_at|178865|\[object Object\]/,
+  );
+});
+
+test("new MCP reads keep full-database analytics separate and redact config audit values", async (t) => {
+  const f = await fixture(t, false, true),
+    w = await f.provider.read(actor);
+  assert.equal(w.tickets.length, 1);
+  assert.equal(w.channelAccess?.[0].dmPolicy, "allowlist");
+  assert.equal(w.channelAccess?.[0].groups[0].id, "chat1");
+  assert.equal(w.people[0].defaultTier, 1);
+  assert.ok(!JSON.stringify(w).includes("never-expose"));
+  assert.ok(!JSON.stringify(w).includes("credentials.token"));
+  const a = await f.provider.query(
+    actor,
+    "analytics",
+    new URLSearchParams({ bucket: "week", days: "30" }),
+  );
+  assert.ok("total" in a && a.total === 10000);
+  assert.deepEqual(f.calls.at(-1).params.arguments, {
+    bucket: "week",
+    trendLimit: 30,
+    staffSinceDays: 30,
+  });
+  const report = await f.provider.query(
+    actor,
+    "report",
+    new URLSearchParams({ kind: "day", date: "2026-09-05" }),
+  );
+  assert.ok("text" in report && report.text.includes("业务日报"));
+  const count = f.calls.length;
+  await assert.rejects(
+    f.provider.query(
+      { ...actor, tenantId: "other" },
+      "analytics",
+      new URLSearchParams(),
+    ),
+    /尚未配置/,
+  );
+  await assert.rejects(
+    f.provider.query(
+      actor,
+      "analytics",
+      new URLSearchParams({ bucket: "anything" }),
+    ),
+    /无效/,
+  );
+  await assert.rejects(
+    f.provider.query(
+      actor,
+      "report",
+      new URLSearchParams({ kind: "lead", group: "bad" }),
+    ),
+    /有效小组/,
+  );
+  assert.equal(f.calls.length, count);
+});
+test("MCP discovery refresh detects added and removed tools without reinitializing", async (t) => {
+  const f = await fixture(t, false, true);
+  await f.provider.client.initialize();
+  assert.ok(f.provider.client.tools.has("get_analytics"));
+  f.extraTools.splice(f.extraTools.indexOf("get_analytics"), 1);
+  f.extraTools.push("future_read_tool");
+  f.provider.client.toolsCheckedAt = 0;
+  await Promise.all([
+    f.provider.client.initialize(),
+    f.provider.client.initialize(),
+  ]);
+  assert.ok(!f.provider.client.tools.has("get_analytics"));
+  assert.ok(f.provider.client.tools.has("future_read_tool"));
+  assert.equal(f.calls.filter((c) => c.method === "initialize").length, 1);
+  assert.equal(f.calls.filter((c) => c.method === "tools/list").length, 2);
+});
+test("default roster edit preserves all unrelated roster sections and person properties", async (t) => {
+  const f = await fixture(t, false, true),
+    w = await f.provider.read(actor);
+  const command = {
+    type: "roster.person.save",
+    data: { groupId: "service", userId: "person1", tier: 3 },
+    expectedRevision: w.revision,
+    requestId: "roster-edit",
+  };
+  await f.provider.command(actor, command);
+  const write = f.calls.find((c) => c.params?.name === "set_roster");
+  assert.deepEqual(write.params.arguments.roster.byDate, f.rosterDoc.byDate);
+  assert.deepEqual(
+    write.params.arguments.roster.buildingRouting,
+    f.rosterDoc.buildingRouting,
+  );
+  assert.deepEqual(
+    write.params.arguments.roster.specialists,
+    f.rosterDoc.specialists,
+  );
+  assert.deepEqual(write.params.arguments.roster.default.service.l1, []);
+  assert.equal(
+    write.params.arguments.roster.default.service.l3[0].extra,
+    "preserve",
+  );
+  assert.equal(
+    write.params.arguments.roster.default.service.l2[0].userid,
+    "person2",
+  );
+  assert.equal(write.params.arguments.by, "测试管理员 (operator)");
+  await f.provider.command(actor, command);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_roster").length,
+    1,
+  );
+});
+test("routing writes use the correct type or keyword contracts and refuse base-rule deletion", async (t) => {
+  const f = await fixture(t, false, true);
+  for (const [i, data, tool, arg] of [
+    [
+      0,
+      { kind: "type", type: "咨询", groupId: "service" },
+      "set_routing_rule",
+      "type",
+    ],
+    [
+      1,
+      { kind: "subject", keywords: "咨询", groupId: "service" },
+      "set_subject_rule",
+      "keyword",
+    ],
+  ] as const) {
+    const w = await f.provider.read(actor);
+    await f.provider.command(actor, {
+      type: "route.save",
+      data,
+      expectedRevision: w.revision,
+      requestId: "rule" + i,
+    });
+    const write = f.calls.find((c) => c.params?.name === tool);
+    assert.equal(write.params.arguments[arg], "咨询");
+    assert.equal(write.params.arguments.toGroup, "service");
+  }
+  const w = await f.provider.read(actor);
+  await assert.rejects(
+    f.provider.command(actor, {
+      type: "route.delete",
+      data: { id: "type:咨询" },
+      expectedRevision: w.revision,
+      requestId: "base-delete",
+    }),
+    /只能覆盖/,
+  );
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "clear_routing_rule").length,
+    0,
+  );
+});
+test("today roster, imported roster and channel writes validate and bind the audit actor", async (t) => {
+  const f = await fixture(t, false, true);
+  const cases = [
+    [
+      "roster.today",
+      { groupId: "service", names: ["测试人员", "测试人员"] },
+      "set_on_duty_today",
+      { group: "service", names: ["测试人员"] },
+    ],
+    [
+      "roster.import",
+      { groupId: "service", text: "测试人员 8:00-18:00", date: "2099-01-01" },
+      "ingest_roster_text",
+      { group: "service", text: "测试人员 8:00-18:00", date: "2099-01-01" },
+    ],
+    [
+      "access.save",
+      {
+        channel: "wecom",
+        action: "set_dm_policy",
+        policy: "owner",
+        by: "forged",
+      },
+      "set_whitelist",
+      { channel: "wecom", action: "set_dm_policy", policy: "owner" },
+    ],
+  ] as const;
+  for (const [type, data, tool, args] of cases) {
+    const w = await f.provider.read(actor);
+    await f.provider.command(actor, {
+      type,
+      data,
+      requestId: type,
+      expectedRevision: w.revision,
+    });
+    assert.deepEqual(
+      f.calls.find((c) => c.params?.name === tool).params.arguments,
+      { ...args, by: "测试管理员 (operator)" },
+    );
+  }
+  const w = await f.provider.read(actor);
+  await assert.rejects(
+    f.provider.command(actor, {
+      type: "access.save",
+      data: { channel: "wecom", action: "set_group_policy", policy: "owner" },
+      requestId: "invalid",
+      expectedRevision: w.revision,
+    }),
+    /策略无效/,
+  );
+  await assert.rejects(
+    f.provider.command(
+      { ...actor, role: "viewer" },
+      {
+        type: "roster.today",
+        data: { groupId: "service", names: ["测试人员"] },
+        requestId: "viewer",
+        expectedRevision: w.revision,
+      },
+    ),
+    /查看权限/,
+  );
+});
+test("new MCP writes preserve uncertain-result idempotency", async (t) => {
+  const f = await fixture(t, false, true),
+    w = await f.provider.read(actor);
+  f.setWriteFail();
+  const cmd = {
+    type: "access.save",
+    data: { channel: "wecom", action: "add_dm_allow", userId: "new-person" },
+    requestId: "uncertain-access",
+    expectedRevision: w.revision,
+  };
+  await assert.rejects(f.provider.command(actor, cmd), /尚未确认/);
+  await assert.rejects(f.provider.command(actor, cmd), /待核对/);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_whitelist").length,
+    1,
+  );
+});
+
+test("default roster editing refuses broadcast tiers and retains members hidden by dated overrides", async (t) => {
+  const f = await fixture(t, false, true);
+  (f.rosterDoc.default.service as any).l4 = "@ALL";
+  const { businessDate } = await import("../server/src/dates.ts");
+  (f.rosterDoc.byDate as any)[businessDate()] = {
+    service: { l1: [{ name: "临时人员", userid: "temporary" }] },
+  };
+  const w = await f.provider.read(actor);
+  assert.ok(
+    w.people.some((p) => p.rosterUserId === "person1" && p.defaultTier === 1),
+  );
+  assert.ok(
+    w.people.some((p) => p.rosterUserId === "temporary" && !p.defaultTier),
+  );
+  assert.equal(w.scheduleRules?.[0].building, "全部楼栋");
+  await assert.rejects(
+    f.provider.command(actor, {
+      type: "roster.person.save",
+      data: { groupId: "service", userId: "person1", tier: 4 },
+      requestId: "broadcast",
+      expectedRevision: w.revision,
+    }),
+    /广播/,
+  );
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_roster").length,
+    0,
+  );
+});
+test("admin can maintain allowlist but only owner can weaken access policy", async (t) => {
+  const f = await fixture(t, false, true),
+    w = await f.provider.read(actor);
+  const cmd = {
+    type: "access.save",
+    data: { channel: "wecom", action: "set_dm_policy", policy: "open" },
+    requestId: "weaken",
+    expectedRevision: w.revision,
+  };
+  await assert.rejects(f.provider.command(actor, cmd), /仅所有者/);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_whitelist").length,
+    0,
+  );
+  await f.provider.command({ ...actor, role: "owner" }, cmd);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_whitelist").length,
+    1,
   );
 });

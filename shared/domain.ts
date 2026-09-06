@@ -16,6 +16,8 @@ export interface Person {
   tier: number;
   active: boolean;
   scheduleLabel?: string;
+  rosterUserId?: string;
+  defaultTier?: number;
 }
 export const statuses = {
   DISPATCHED: "待接单",
@@ -163,7 +165,19 @@ export interface Conversation {
   }[];
 }
 export interface Workspace {
+  channelAccess?: ChannelAccess[];
+  scheduleRules?: {
+    groupId: string;
+    date: string;
+    building: string;
+    from: string;
+    to: string;
+    names: string[];
+    enabled: boolean;
+  }[];
   integration?: {
+    tools?: string[];
+    toolsCheckedAt?: string;
     notices: string[];
     commands: string[];
     loaded: number;
@@ -221,4 +235,35 @@ export interface Command {
   data: Record<string, unknown>;
   expectedRevision: number;
   requestId: string;
+}
+
+export interface ChannelAccess {
+  channel: "wecom" | "feishu";
+  dmPolicy: string;
+  dmAllowFrom: string[];
+  groupPolicy: string;
+  groups: { id: string; name: string; mode: string }[];
+}
+export interface RemoteAnalytics {
+  generatedAt: string;
+  total: number;
+  today: string;
+  periods: {
+    label: string;
+    created: number;
+    closed: number;
+    noAccept: number;
+    response: number | null;
+    resolution: number | null;
+    completionRate: number | null;
+  }[];
+  trend: { date: string; created: number; closed: number; backlog: number }[];
+  staff: {
+    name: string;
+    accepted: number;
+    closed: number;
+    share: number;
+    response: number | null;
+    handling: number | null;
+  }[];
 }

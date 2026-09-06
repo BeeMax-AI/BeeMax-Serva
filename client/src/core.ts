@@ -205,6 +205,7 @@ export async function command(
   await refresh();
   window.dispatchEvent(new Event("data-updated"));
 }
+let modalSequence = 0;
 export function modal(
   heading: string,
   content: string,
@@ -216,6 +217,7 @@ export function modal(
   const el = document.querySelector<HTMLDialogElement>("#modal")!;
   if (el.open) el.close();
   el.className = "";
+  el.dataset.instance = String(++modalSequence);
   el.onchange = null;
   el.dataset.revision = String(state.boot?.workspace.revision || 0);
   el.innerHTML = `<form id="dialog-form"><h2>${esc(heading)}</h2>${content}<p class="form-error" role="alert"></p><div class="modal-actions"><button type="button" class="button" data-close-modal>${submit ? "取消" : "关闭"}</button>${submit ? `<button type="submit" class="button primary">${esc(submit.label)}</button>` : ""}</div></form>`;

@@ -108,6 +108,8 @@ export class McpClient {
     if (value.error || !("result" in value)) throw new Error("rpc");
     return value.result;
   }
+  private discovering?: Promise<void>;
+  toolsCheckedAt = 0;
   async initialize() {
     if (!this.ready)
       this.ready = (async () => {
@@ -117,25 +119,39 @@ export class McpClient {
           clientInfo: { name: "qianfeng-service-platform", version: "0.1.0" },
         });
         await this.rpc("notifications/initialized", {}, true);
+      })().catch((error) => {
+        this.ready = undefined;
+        throw error;
+      });
+    await this.ready;
+    await this.refreshTools();
+  }
+  async refreshTools(force = false) {
+    if (!force && Date.now() - this.toolsCheckedAt < 60_000) return;
+    if (!this.discovering)
+      this.discovering = (async () => {
         let cursor: string | undefined;
         const names = new Set<string>();
         for (let page = 0; page < 20; page++) {
           const result = await this.rpc("tools/list", cursor ? { cursor } : {});
-          if (!Array.isArray(result.tools))
+          if (
+            !Array.isArray(result.tools) ||
+            result.tools.some((t: any) => typeof t?.name !== "string")
+          )
             throw new AppError(502, "MCP_SCHEMA", "MCP 工具清单格式无效");
           for (const t of result.tools) names.add(t.name);
           cursor = result.nextCursor;
           if (!cursor) {
             this.tools = names;
+            this.toolsCheckedAt = Date.now();
             return;
           }
         }
         throw new AppError(502, "MCP_SCHEMA", "MCP 工具清单分页过多");
-      })().catch((error) => {
-        this.ready = undefined;
-        throw error;
+      })().finally(() => {
+        this.discovering = undefined;
       });
-    return this.ready;
+    await this.discovering;
   }
   async call(name: string, args: Record<string, unknown> = {}): Promise<any> {
     await this.initialize();
