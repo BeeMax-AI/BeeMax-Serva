@@ -140,6 +140,14 @@ export class McpProvider extends LocalProvider {
   }
   private async fetchWorkspace(): Promise<Workspace> {
     await this.client.initialize();
+    const extraReading = Promise.allSettled([
+      this.client.tools.has("get_whitelist")
+        ? this.client.call("get_whitelist").then(normalizeAccess)
+        : Promise.resolve(undefined),
+      this.client.tools.has("list_config_changes")
+        ? this.client.call("list_config_changes", { limit: 1000 })
+        : Promise.resolve(undefined),
+    ]);
     const results = await Promise.allSettled([
       this.client.call("list_tickets", { limit: 1000 }),
       this.client.call("ticket_stats"),
@@ -319,14 +327,7 @@ export class McpProvider extends LocalProvider {
       notices.push(
         `待闭环按全部非 CLOSED 状态统计 ${open} 单；接口 open 字段为 ${stats.open}，两者口径不同。`,
       );
-    const extra = await Promise.allSettled([
-      this.client.tools.has("get_whitelist")
-        ? this.client.call("get_whitelist").then(normalizeAccess)
-        : Promise.resolve(undefined),
-      this.client.tools.has("list_config_changes")
-        ? this.client.call("list_config_changes", { limit: 1000 })
-        : Promise.resolve(undefined),
-    ]);
+    const extra = await extraReading;
     if (extra[0].status === "fulfilled") w.channelAccess = extra[0].value;
     else notices.push("渠道权限暂时读取失败，请刷新后再查看；未采用本地样例。");
     if (extra[1].status === "fulfilled" && Array.isArray(extra[1].value)) {
@@ -490,11 +491,13 @@ export class McpProvider extends LocalProvider {
     };
   }
   override async getTicket(actor: Actor, id: string) {
-    const w = await this.read(actor);
+    this.authorize(actor);
+    // Use the known list only for membership/labels; detail itself always comes from MCP.
+    const w = this.cache?.workspace || (await this.read(actor));
     if (!w.tickets.some((t) => t.id === id)) return undefined;
     const raw = await this.client.call("get_ticket", { id });
     requireValue(raw?.id === id, "MCP 返回的工单标识不匹配", 502);
-    return this.normalize(raw, w.people, w.groups);
+    return this.normalize(raw, [...w.people], w.groups);
   }
   override async command(
     actor: Actor,

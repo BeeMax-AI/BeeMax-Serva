@@ -523,7 +523,29 @@ export function analyze() {
   );
 }
 export async function ticketDetail(id: string) {
-  const t = await api<Ticket>("/tickets/" + encodeURIComponent(id));
+  const loading = modal("工单详情", '<p role="status">正在加载工单详情…</p>');
+  const instance = loading.dataset.instance,
+    controller = new AbortController();
+  const cancelRead = () => {
+    // A reused dialog can deliver the previous instance's queued close event.
+    if (!loading.open || loading.dataset.instance !== instance)
+      controller.abort();
+  };
+  loading.addEventListener("close", cancelRead);
+  let t: Ticket;
+  try {
+    t = await api<Ticket>("/tickets/" + encodeURIComponent(id), {
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (loading.open && loading.dataset.instance === instance)
+      loading.querySelector(".form-error")!.textContent =
+        error instanceof Error ? error.message : "工单读取失败";
+    return;
+  } finally {
+    loading.removeEventListener("close", cancelRead);
+  }
+  if (!loading.open || loading.dataset.instance !== instance) return;
   const el = modal(
     `工单 ${t.id}`,
     `<h3>${esc(t.subject)}</h3>${statusTag(t.status)}<div class="detail-meta"><div><span>${esc(w().tenant.referenceLabel)}</span>${esc(t.reference)}</div><div><span>负责小组</span>${esc(groupName(t.groupId))}</div><div><span>负责人</span>${esc(personName(t.assigneeId))}</div><div><span>创建时间</span>${fmt(t.createdAt)}</div></div>${t.holdReason ? `<div class="note-band">挂起原因：${esc(t.holdReason)}<br>跟进时间：${fmt(t.remindAt)}</div>` : ""}<button type="button" class="button" data-ask-ticket="${esc(t.id)}">在 AI助手中查询这单</button><h3>完整流转记录</h3><div class="timeline">${t.events.map((e) => `<div class="event"><div><strong>${esc(e.name)}</strong><time>${fmt(e.at)}</time></div><p>${esc(e.detail)} · ${esc(e.by)}</p></div>`).join("")}</div><div class="drawer-actions">${[

@@ -97,8 +97,10 @@ function staffTable(limit?: number, rows = staffRows()) {
 }
 export function overview() {
   const m = state.boot!.metrics,
-    priority = w().tickets.filter((t) =>
-      ["NO_ACCEPT", "ESCALATED_L2", "ON_HOLD"].includes(t.status),
+    priority = w().tickets.filter(
+      (t) =>
+        t.status.startsWith("ESCALATED_") ||
+        ["NO_ACCEPT", "ON_HOLD"].includes(t.status),
     );
   return (
     title(

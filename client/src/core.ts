@@ -55,24 +55,26 @@ export const esc = (v: unknown) =>
         c
       ]!,
   );
-export const fmt = (v: string | null | undefined) =>
-  v
-    ? new Intl.DateTimeFormat("zh-CN", {
-        timeZone: w().tenant.timezone,
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(new Date(v))
-    : "—";
+let formatTimezone = "";
+let dateFormatter: Intl.DateTimeFormat;
+export function fmt(v: string | null | undefined) {
+  if (!v) return "—";
+  const timezone = w().tenant.timezone;
+  if (!dateFormatter || timezone !== formatTimezone) {
+    formatTimezone = timezone;
+    dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: timezone,
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+  return dateFormatter.format(new Date(v));
+}
 export const dateOf = (v: string) =>
-  new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(v));
+  new Date(Date.parse(v) + 8 * 3600000).toISOString().slice(0, 10);
 export const offsetDate = (date: string, n: number) =>
   new Date(Date.parse(date + "T00:00:00Z") + n * 86400000)
     .toISOString()
@@ -114,7 +116,8 @@ export const tag = (text: string, blue = false) =>
 export const statusTag = (s: Ticket["status"]) =>
   tag(
     statuses[s],
-    ["NO_ACCEPT", "ESCALATED_L2", "IN_PROGRESS", "ACCEPTED"].includes(s),
+    s.startsWith("ESCALATED_") ||
+      ["NO_ACCEPT", "IN_PROGRESS", "ACCEPTED"].includes(s),
   );
 export const groupName = (id: string) =>
   w().groups.find((g) => g.id === id)?.name || id;

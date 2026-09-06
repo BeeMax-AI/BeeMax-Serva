@@ -772,3 +772,37 @@ test("admin can maintain allowlist but only owner can weaken access policy", asy
     1,
   );
 });
+
+test("escalation tiers L3 and L4 load instead of breaking the whole workspace", async (t) => {
+  for (const status of ["ESCALATED_L3", "ESCALATED_L4"]) {
+    const f = await fixture(t);
+    f.rows[0].status = status;
+    const w = await f.provider.read(actor);
+    assert.equal(w.tickets[0].status, status);
+    const { metrics } = await import("../server/src/metrics.ts");
+    assert.equal(metrics(w, "2026-09-06", "2026-09-06").escalated, 1);
+    const { statusTag } = await import("../client/src/core.ts");
+    assert.match(statusTag(w.tickets[0].status), /status blue/);
+  }
+});
+
+test("opening a known ticket refreshes its detail without reloading every workspace tool", async (t) => {
+  const f = await fixture(t);
+  const w = await f.provider.read(actor);
+  const now = Date.now();
+  t.mock.method(Date, "now", () => now + 20000);
+  f.rows[0].status = "CLOSED";
+  const detail = await f.provider.getTicket(actor, w.tickets[0].id);
+  assert.equal(detail?.status, "CLOSED", "detail must still be fresh");
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "list_tickets").length,
+    1,
+    "known detail should not reload the entire workspace after its 10 second cache expires",
+  );
+  const count = f.calls.length;
+  await assert.rejects(
+    f.provider.getTicket({ ...actor, tenantId: "other" }, w.tickets[0].id),
+    /尚未配置/,
+  );
+  assert.equal(f.calls.length, count);
+});

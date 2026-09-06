@@ -26,6 +26,8 @@ export const statuses = {
   ON_HOLD: "挂起中",
   NO_ACCEPT: "无人接单",
   ESCALATED_L2: "已升级 L2",
+  ESCALATED_L3: "已升级 L3",
+  ESCALATED_L4: "已升级 L4",
   CLOSED: "已闭环",
 } as const;
 export type TicketStatus = keyof typeof statuses;

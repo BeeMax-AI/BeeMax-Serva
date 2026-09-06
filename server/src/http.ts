@@ -199,6 +199,18 @@ export function createApp(
           );
           return;
         }
+        if (pathname.startsWith("/api/tickets/") && method === "GET") {
+          const ticket =
+            provider instanceof LocalProvider
+              ? await provider.getTicket(
+                  actor,
+                  decodeURIComponent(pathname.slice(13)),
+                )
+              : undefined;
+          requireValue(ticket, "工单不存在", 404);
+          send(res, 200, ticket);
+          return;
+        }
         const w = await provider.read(actor);
         if (pathname === "/api/bootstrap" && method === "GET") {
           const { conversations, ...workspace } = w;
@@ -226,18 +238,6 @@ export function createApp(
             "日期范围无效",
           );
           send(res, 200, metrics(w, start, end));
-          return;
-        }
-        if (pathname.startsWith("/api/tickets/") && method === "GET") {
-          const ticket =
-            provider instanceof LocalProvider
-              ? await provider.getTicket(
-                  actor,
-                  decodeURIComponent(pathname.slice(13)),
-                )
-              : undefined;
-          requireValue(ticket, "工单不存在", 404);
-          send(res, 200, ticket);
           return;
         }
         if (pathname === "/api/messages" && w.integration)

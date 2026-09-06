@@ -1,3 +1,4 @@
+import { metrics } from "../../shared/metrics.js";
 import {
   SyncSchedule,
   readSyncMinutes,
@@ -12,7 +13,7 @@ import {
   editRosterPerson,
   editAccess,
 } from "./mcp.js";
-import type { Bootstrap, Metrics } from "../../shared/domain.js";
+import type { Bootstrap } from "../../shared/domain.js";
 import {
   state,
   currentPage,
@@ -31,7 +32,6 @@ import {
   toast,
   api,
   post,
-  refresh,
   command,
   offsetDate,
   canWrite,
@@ -68,6 +68,8 @@ const navs = [
   ["messages", "chat", "消息日志"],
   ["settings", "settings", "配置管理"],
 ];
+let pendingLoad: Promise<SyncOutcome> | undefined;
+let loadController: AbortController | undefined;
 let loadSequence = 0,
   messageAuto = false,
   refreshTimer: number;
@@ -176,6 +178,8 @@ function startDataSync() {
   syncStatus();
 }
 function stopDataSync() {
+  loadController?.abort();
+  pendingLoad = undefined;
   clearInterval(syncTimer);
   syncTimer = undefined;
   syncIdentity = "";
@@ -262,29 +266,39 @@ function renderContent() {
   const auto = document.querySelector<HTMLInputElement>("#message-auto");
   if (auto) auto.checked = messageAuto;
 }
-async function loadMetrics() {
-  const end = state.boot!.today,
+function loadMetrics() {
+  if (!state.boot) return;
+  const end = state.boot.today,
     start = offsetDate(
       end,
       state.period === "day" ? 0 : state.period === "month" ? -29 : -6,
     );
-  state.metrics = await api<Metrics>(`/metrics?start=${start}&end=${end}`);
+  state.metrics = metrics(w(), start, end);
 }
-async function load(automatic = false): Promise<SyncOutcome> {
+function load(automatic = false): Promise<SyncOutcome> {
+  if (pendingLoad) return pendingLoad;
+  const request = runLoad(automatic).finally(() => {
+    if (pendingLoad === request) pendingLoad = undefined;
+  });
+  pendingLoad = request;
+  return request;
+}
+async function runLoad(automatic = false): Promise<SyncOutcome> {
   const seq = ++loadSequence;
   const previousPhase = syncPhase === "failed" ? "failed" : "synced";
   try {
     syncPhase = "syncing";
     syncStatus();
-    const boot = await api<Bootstrap>("/bootstrap");
+    loadController = new AbortController();
+    const boot = await api<Bootstrap>("/bootstrap", {
+      signal: loadController.signal,
+    });
     const period = state.period;
     const start = offsetDate(
       boot.today,
       period === "day" ? 0 : period === "month" ? -29 : -6,
     );
-    const freshMetrics = await api<Metrics>(
-      `/metrics?start=${start}&end=${boot.today}`,
-    );
+    const freshMetrics = metrics(boot.workspace, start, boot.today);
     if (
       seq !== loadSequence ||
       (automatic && (syncBlocked() || period !== state.period))
@@ -307,7 +321,8 @@ async function load(automatic = false): Promise<SyncOutcome> {
     state.page = location.hash.slice(1) || "insights";
     if (!navs.some((n) => n[0] === state.page) && state.page !== "agent")
       state.page = "overview";
-    if (!automatic) renderShell();
+    if (!document.querySelector("#content")) renderShell();
+    updateNavigation();
     renderContent();
     renderAssistant();
     startDataSync();
@@ -329,13 +344,40 @@ async function load(automatic = false): Promise<SyncOutcome> {
     return "failed";
   }
 }
+function updateNavigation() {
+  document
+    .querySelectorAll<HTMLAnchorElement>("#navigation a")
+    .forEach((link) => {
+      const active =
+        link.hash === "#" + (state.page === "agent" ? "accounts" : state.page);
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  const crumb = document.querySelector("#crumb");
+  if (crumb)
+    crumb.textContent =
+      state.page === "agent"
+        ? "企微账号 / Agent 详情"
+        : navs.find((n) => n[0] === state.page)?.[2] || "运营总览";
+}
+function showLoadedPage() {
+  if (!state.boot) {
+    void load();
+    return;
+  }
+  if (!navs.some((n) => n[0] === state.page) && state.page !== "agent")
+    state.page = "overview";
+  loadMetrics();
+  updateNavigation();
+  renderContent();
+  renderAssistant();
+  syncStatus();
+}
 function navigate(page: string) {
   if (location.hash === "#" + page) {
     state.page = page;
-    renderShell();
-    renderContent();
-    renderAssistant();
-    syncStatus();
+    showLoadedPage();
   } else location.hash = page;
 }
 function focusPagedList(scope: string) {
@@ -411,7 +453,7 @@ async function handleClick(e: MouseEvent) {
   }
   if (b.dataset.period) {
     state.period = b.dataset.period;
-    await loadMetrics();
+    loadMetrics();
     renderContent();
     return;
   }
@@ -685,21 +727,21 @@ window.addEventListener("hashchange", () => {
   state.page = location.hash.slice(1) || "insights";
   document.body.classList.remove("nav-open");
   closeModal();
-  void load();
+  showLoadedPage();
   syncRefresh();
   window.scrollTo(0, 0);
 });
 window.addEventListener("data-updated", () => {
   ++loadSequence;
-  void loadMetrics()
-    .then(() => {
-      renderContent();
-      renderAssistant();
-      syncPhase = "synced";
-      syncSchedule.reset();
-      syncStatus();
-    })
-    .catch((e) => toast(e.message));
+  loadController?.abort();
+  pendingLoad = undefined;
+  if (!state.boot) return;
+  loadMetrics();
+  renderContent();
+  renderAssistant();
+  syncPhase = "synced";
+  syncSchedule.reset();
+  syncStatus();
 });
 window.addEventListener("session-expired", () => {
   clearInterval(refreshTimer);
