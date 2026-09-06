@@ -59,7 +59,7 @@ function login() {
   state.boot = null;
   resetAssistant();
   document.querySelector("#app")!.innerHTML =
-    `<main class="login-screen"><section class="login-card"><img src="/assets/beemax-logo-mark.svg" alt="千蜂智服"><div class="eyebrow">BEEMAX / SERVICE</div><h1>千蜂智服</h1><p>AI 服务运营平台</p><form id="login-form">${field("账号", "username", "", "text", 'required autocomplete="username" placeholder="admin / owner / viewer"')}${field("密码", "password", "", "password", 'required autocomplete="current-password"')}<p class="form-error" role="alert"></p><button class="button primary">登录工作空间 →</button></form><small>首次启动的本地账号保存在服务器 .local/access.json。</small></section></main>`;
+    `<main class="login-screen"><section class="login-card"><img src="/assets/beemax-logo-mark.svg" alt="千蜂智服"><div class="eyebrow">BEEMAX / SERVICE</div><h1>千蜂智服</h1><p>AI 服务运营平台</p><form id="login-form">${field("账号", "username", "", "text", 'required autocomplete="username" placeholder="请输入账号"')}${field("密码", "password", "", "password", 'required autocomplete="current-password"')}<p class="form-error" role="alert"></p><button class="button primary">登录工作空间 →</button></form><small>首次启动的本地账号保存在服务器 .local/access.json。</small></section></main>`;
   document.querySelector<HTMLFormElement>("#login-form")!.onsubmit = async (
     e,
   ) => {

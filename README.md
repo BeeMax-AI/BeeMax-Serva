@@ -14,7 +14,7 @@ npm start
 
 打开 http://127.0.0.1:8766。首次启动生成 `.local/access.json`，内含本机随机生成的账号密码：
 
-- `admin`：演示客户运营管理员
+- `admin`：首次初始化的演示客户运营管理员（当前本机已按用户要求改为 `beemax`，以 `.local/access.json` 为准）
 - `owner`：同一客户的 owner，可保存连接凭据
 - `viewer`：同一客户只读账号
 - `other`：另一个演示客户的管理员，用于验证租户隔离
