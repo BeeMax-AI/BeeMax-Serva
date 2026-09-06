@@ -88,7 +88,7 @@ function staffTable(limit?: number, rows = staffRows()) {
       "平均响应",
       ...(limit ? [] : ["平均处理"]),
     ],
-    (limit ? rows.slice(0, limit) : slicePage(rows, state.staffPageSize)).map(
+    (limit ? rows.slice(0, limit) : slicePage(rows, state.pageSize)).map(
       (p) =>
         `<tr><td><div class="person"><span class="avatar">${esc(p.name[0])}</span><div>${esc(p.name)}<small>${esc(groupName(p.groupId))} · ${esc(p.scheduleLabel || (p.active ? "当班" : "未在岗"))}</small></div></div></td><td>${p.count} 单</td><td>${p.open} 单</td><td>${p.response} 分钟</td>${limit ? "" : `<td>${p.processing} 分钟</td>`}</tr>`,
     ),
@@ -186,7 +186,7 @@ export function staff() {
       ["当前待办", rows.reduce((n, p) => n + p.open, 0), "未闭环工单"],
       ["最多待办", Math.max(0, ...rows.map((p) => p.open)), "单人当前待办"],
     ]) +
-    `<section class="panel staff-panel" aria-label="人员明细"><div class="staff-toolbar"><div class="staff-ledger-title"><h2 tabindex="-1">人员明细</h2><span>${rows.length} 条记录</span></div><div class="staff-controls"><label class="staff-search">${icon("search")}<input id="search" aria-label="搜索人员" placeholder="搜索姓名或小组" value="${esc(state.query)}"></label><label class="staff-group"><span>小组</span><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></label>${button("重置", "reset", false, !state.query && !state.group)}</div></div>${staffTable(undefined, rows)}<div class="staff-pagination"><label>每页<select id="staff-page-size" aria-label="每页人员记录数">${[20, 30].map((size) => `<option value="${size}" ${state.staffPageSize === size ? "selected" : ""}>${size} 条</option>`).join("")}</select></label>${pager(rows.length, state.staffPageSize)}</div><div class="panel-footer">平均响应：接单 − 创建；平均处理：闭环 − 接单。仅纳入有效时间戳。</div></section>`
+    `<section class="panel staff-panel" aria-label="人员明细"><div class="staff-toolbar"><div class="staff-ledger-title"><h2 tabindex="-1">人员明细</h2><span>${rows.length} 条记录</span></div><div class="staff-controls"><label class="staff-search">${icon("search")}<input id="search" aria-label="搜索人员" placeholder="搜索姓名或小组" value="${esc(state.query)}"></label><label class="staff-group"><span>小组</span><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></label>${button("重置", "reset", false, !state.query && !state.group)}</div></div>${staffTable(undefined, rows)}${pager(rows.length)}<div class="panel-footer">平均响应：接单 − 创建；平均处理：闭环 − 接单。仅纳入有效时间戳。</div></section>`
   );
 }
 export function accounts() {
@@ -219,7 +219,14 @@ export function accounts() {
         "独立于真实连接状态",
       ],
     ]) +
-    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理推送范围与消息记录。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(w().accounts, state.account, "全部实例")}</select></div>${rows.map((a) => `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "未连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>${state.boot!.mode === "local" ? "连接接口待接入" : "Agent 服务"}</small></div><div class="account-fact"><small>主动推送范围</small><strong>${a.groups.length} 个授权群</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">Agent 详情 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`).join("")}</section>`
+    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理推送范围与消息记录。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(w().accounts, state.account, "全部实例")}</select></div>${slicePage(
+      rows,
+    )
+      .map(
+        (a) =>
+          `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "未连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>${state.boot!.mode === "local" ? "连接接口待接入" : "Agent 服务"}</small></div><div class="account-fact"><small>主动推送范围</small><strong>${a.groups.length} 个授权群</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">Agent 详情 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
+      )
+      .join("")}${pager(rows.length)}</section>`
   );
 }
 export function agent() {
@@ -233,7 +240,14 @@ export function agent() {
       "管理当前账号的主动推送范围。",
       tag("仅允许已授权群", true),
     ) +
-    `<div class="agent-identity"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>实例 ID：${esc(a.id)}</small></div></div><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><section class="panel"><div class="config-title"><div><h2>添加主动推送群</h2><p>支持长短会话 ID；名称用于识别。</p></div>${tag(`${a.groups.length} 个已授权`)}</div><form id="whitelist-form" class="whitelist-form"><label>会话 ID（chat_id）<input name="chatId" required maxlength="128" placeholder="填写会话 ID"></label><label>群名称（可选）<input name="name" maxlength="40" placeholder="例如 客服工作群"></label><button class="button primary" ${canWrite() ? "" : "disabled"}>加入白名单</button></form></section><section class="panel authorized-panel"><div class="config-title"><div><h2>已授权群</h2><p>主动推送权限与人员接单权限分别管理。</p></div></div>${a.groups.map((g) => `<div class="authorized-row"><span class="group-medallion">${icon("chat")}</span><div><strong>${esc(g.name || "未命名群")}</strong><code>${esc(g.id)}</code><small>加入于 ${fmt(g.addedAt)}</small></div><button class="icon-button" aria-label="移除${esc(g.name || g.id)}" data-remove-group="${esc(g.id)}" ${canWrite() ? "" : "disabled"}>${icon("close")}</button></div>`).join("") || empty("尚未授权任何群")}</section>`
+    `<div class="agent-identity"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>实例 ID：${esc(a.id)}</small></div></div><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><section class="panel"><div class="config-title"><div><h2>添加主动推送群</h2><p>支持长短会话 ID；名称用于识别。</p></div>${tag(`${a.groups.length} 个已授权`)}</div><form id="whitelist-form" class="whitelist-form"><label>会话 ID（chat_id）<input name="chatId" required maxlength="128" placeholder="填写会话 ID"></label><label>群名称（可选）<input name="name" maxlength="40" placeholder="例如 客服工作群"></label><button class="button primary" ${canWrite() ? "" : "disabled"}>加入白名单</button></form></section><section class="panel authorized-panel"><div class="config-title"><div><h2>已授权群</h2><p>主动推送权限与人员接单权限分别管理。</p></div></div>${
+      slicePage(a.groups)
+        .map(
+          (g) =>
+            `<div class="authorized-row"><span class="group-medallion">${icon("chat")}</span><div><strong>${esc(g.name || "未命名群")}</strong><code>${esc(g.id)}</code><small>加入于 ${fmt(g.addedAt)}</small></div><button class="icon-button" aria-label="移除${esc(g.name || g.id)}" data-remove-group="${esc(g.id)}" ${canWrite() ? "" : "disabled"}>${icon("close")}</button></div>`,
+        )
+        .join("") || empty("尚未授权任何群")
+    }${pager(a.groups.length)}</section>`
   );
 }
 export const messageStatuses: Record<string, string> = {
@@ -322,11 +336,12 @@ export function insights() {
     title(
       "AI智能分析",
       "结合工单、处理记录与历史建议，持续复盘服务运营。",
-      button("自动分析设置", "plans", false, !canWrite()) +
+      button(`管理全部计划（${w().plans.length}）`, "plans") +
         button(`${icon("spark")}立即分析`, "analyze", true, !canWrite()),
     ) +
     `<div class="note-band">${icon("spark")} ${state.boot!.aiConfigured ? "模型已配置 · 分析基于当前租户的数据" : "模型待配置 · 当前提供数据汇总与规则建议"}<br>报告保存在工作台，业务操作仍需人工确认。</div><section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
-      .plans.map(
+      .plans.slice(0, 6)
+      .map(
         (p) =>
           `<button data-plan="${esc(p.id)}" class="schedule-preview" ${canWrite() ? "" : "disabled"}><strong>${esc(p.name)}</strong>${tag(p.enabled ? "开启" : "停用", p.enabled)}<small>下次：${p.nextRun.slice(0, 4)} / ${fmt(p.nextRun)}</small></button>`,
       )
@@ -334,7 +349,7 @@ export function insights() {
         "",
       )}</div></section><div class="report-workspace"><section class="panel report-main">${
       r
-        ? `<div class="panel-heading"><div><div class="eyebrow">LATEST REPORT / ${r.mode === "model" ? "AI" : "DATA"}</div><h2>${esc(r.name)}</h2><p class="subtext">${r.start} — ${r.end} · ${fmt(r.generatedAt)}</p></div>${tag(r.mode === "model" ? "AI 分析" : "规则汇总")}</div><div class="report-content"><p class="report-summary">${esc(r.summary)}</p>${rail(
+        ? `<div class="panel-heading"><div><div class="eyebrow">分析报告 · ${r.mode === "model" ? "AI" : "数据汇总"}</div><h2>${esc(r.name)}</h2><p class="subtext">${r.start} — ${r.end} · ${fmt(r.generatedAt)}</p></div>${tag(r.mode === "model" ? "AI 分析" : "规则汇总")}</div><div class="report-content"><p class="report-summary">${esc(r.summary)}</p>${rail(
             [
               ["期间新建", r.metrics.created, "单"],
               ["期间闭环", r.metrics.closed, "单"],
@@ -343,6 +358,13 @@ export function insights() {
             ],
           )}<div class="note-band">${esc(r.coverage)}</div><h3>运营建议 ${r.advice.length}</h3>${r.advice.map((a) => `<article class="live-advice"><h3>${esc(a.title)}</h3><p><strong>数据依据</strong> ${esc(a.evidence)}</p><p><strong>建议行动</strong> ${esc(a.action)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div>${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${r.id}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></article>`).join("") || empty("暂无新建议，不对不足的数据作推断")}</div>`
         : empty("尚无分析报告。选择日期生成首份报告，或等待周期计划运行。")
-    }</section><aside class="panel report-history"><div class="panel-heading"><h2>历史报告</h2></div>${reports.map((item) => `<button data-report-select="${item.id}" class="${item.id === r?.id ? "active" : ""}"><strong>${esc(item.name)}</strong><small>${item.start} — ${item.end}</small><small>${fmt(item.generatedAt)}</small></button>`).join("") || empty("暂无历史报告")}</aside></div>`
+    }</section><aside class="panel report-history"><div class="panel-heading"><h2 tabindex="-1">历史报告</h2></div>${
+      slicePage(reports, state.pageSize, "reports")
+        .map(
+          (item) =>
+            `<button data-report-select="${item.id}" class="${item.id === r?.id ? "active" : ""}"><strong>${esc(item.name)}</strong><small>${item.start} — ${item.end}</small><small>${fmt(item.generatedAt)}</small></button>`,
+        )
+        .join("") || empty("暂无历史报告")
+    }${pager(reports.length, state.pageSize, "reports")}</aside></div>`
   );
 }

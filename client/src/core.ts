@@ -1,3 +1,4 @@
+import { pageWindow } from "../../shared/pagination.js";
 import type { Bootstrap, Metrics, Ticket } from "../../shared/domain.js";
 import { statuses } from "../../shared/domain.js";
 export const state: {
@@ -9,10 +10,12 @@ export const state: {
   query: string;
   status: string;
   group: string;
+  tier: string;
   direction: string;
   messageType: string;
   listPage: number;
-  staffPageSize: number;
+  pageSize: number;
+  extraPages: Record<string, number>;
   period: string;
   metrics: Metrics | null;
   report: string;
@@ -26,10 +29,12 @@ export const state: {
   query: "",
   status: "",
   group: "",
+  tier: "",
   direction: "",
   messageType: "",
   listPage: 1,
-  staffPageSize: 20,
+  pageSize: 20,
+  extraPages: {},
   period: "week",
   metrics: null,
   report: "",
@@ -130,17 +135,22 @@ export const empty = (message: string) =>
 export function table(headers: string[], rows: string[], className = "") {
   return `<div class="table-box"><table class="${className}"><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.join("") : `<tr><td colspan="${headers.length}">${empty("暂无匹配记录")}</td></tr>`}</tbody></table></div>`;
 }
-export function pager(count: number, size = 8) {
-  const pages = Math.max(1, Math.ceil(count / size));
-  state.listPage = Math.min(state.listPage, pages);
-  return `<div class="connection-pagination"><span>共 ${count} 条 · 第 ${state.listPage} / ${pages} 页</span>${button("上一页", "prev", false, state.listPage === 1)}${button("下一页", "next", false, state.listPage === pages)}</div>`;
+export function currentPage(scope = "main") {
+  return scope === "main" ? state.listPage : state.extraPages[scope] || 1;
 }
-export function slicePage<T>(rows: T[], size = 8) {
-  state.listPage = Math.min(
-    state.listPage,
-    Math.max(1, Math.ceil(rows.length / size)),
-  );
-  return rows.slice((state.listPage - 1) * size, state.listPage * size);
+export function setPage(page: number, scope = "main") {
+  if (scope === "main") state.listPage = page;
+  else state.extraPages[scope] = page;
+}
+export function pager(count: number, size = state.pageSize, scope = "main") {
+  const p = pageWindow(count, currentPage(scope), size);
+  setPage(p.page, scope);
+  return `<div class="connection-pagination" data-pagination="${esc(scope)}"><label class="page-size-control">每页<select data-page-size="${esc(scope)}" aria-label="每页记录数">${[20, 30].map((n) => `<option value="${n}" ${p.size === n ? "selected" : ""}>${n} 条</option>`).join("")}</select></label><span>共 ${count} 条 · ${count ? p.start + 1 : 0}–${p.end} 条 · 第 ${p.page} / ${p.pages} 页</span><div class="page-buttons"><button class="button" data-page-step="-1" data-page-scope="${esc(scope)}" ${p.page === 1 ? "disabled" : ""}>上一页</button><button class="button" data-page-step="1" data-page-scope="${esc(scope)}" ${p.page === p.pages ? "disabled" : ""}>下一页</button></div></div>`;
+}
+export function slicePage<T>(rows: T[], size = state.pageSize, scope = "main") {
+  const p = pageWindow(rows.length, currentPage(scope), size);
+  setPage(p.page, scope);
+  return rows.slice(p.start, p.end);
 }
 let toastTimer: number;
 export function toast(message: string) {

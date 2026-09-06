@@ -418,9 +418,7 @@ textarea {
 }
 .staff-ledger-title,
 .staff-controls,
-.staff-group,
-.staff-pagination,
-.staff-pagination > label {
+.staff-group {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -431,8 +429,7 @@ textarea {
   font-weight: 600;
 }
 .staff-ledger-title span,
-.staff-group > span,
-.staff-pagination > label {
+.staff-group > span {
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
@@ -472,8 +469,7 @@ textarea {
 .staff-search input:focus {
   outline: none;
 }
-.staff-group select,
-.staff-pagination select {
+.staff-group select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 12px;
@@ -482,19 +478,6 @@ textarea {
   font: inherit;
   font-size: 12px;
   max-width: 220px;
-}
-.staff-pagination {
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding: 14px 24px;
-  border-top: 1px solid var(--line);
-  gap: 16px;
-}
-.staff-pagination .connection-pagination {
-  padding: 0;
-  border: 0;
-  flex: 1;
-  flex-wrap: wrap;
 }
 @media (max-width: 719px) {
   .staff-toolbar {
@@ -516,10 +499,78 @@ textarea {
     min-width: 0;
     max-width: none;
   }
-  .staff-pagination {
-    padding: 14px 16px;
-  }
-  .staff-pagination .connection-pagination {
+}
+
+/* Shared list controls: all record lists use the same page size and range. */
+.connection-pagination {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-size-control,
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.page-size-control {
+  font-size: 12px;
+  color: var(--muted);
+}
+.page-size-control select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--navy);
+  background: var(--white);
+}
+.report-history .connection-pagination > span {
+  flex-basis: 100%;
+}
+.report-history .page-buttons {
+  width: 100%;
+  justify-content: flex-end;
+}
+.report-history > button {
+  width: 100%;
+}
+.plan-manager {
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.live-schedules {
+  max-height: 260px;
+  overflow-y: auto;
+}
+section.panel,
+aside.panel {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 719px) {
+  .connection-pagination > span {
     flex-basis: 100%;
   }
+  .page-buttons {
+    margin-left: auto;
+  }
+}
+.data-coverage {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.data-coverage summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.data-coverage p {
+  margin: 10px 0 0;
+  line-height: 1.8;
+}
+
+.report-history > .connection-pagination {
+  grid-column: 1 / -1;
 }

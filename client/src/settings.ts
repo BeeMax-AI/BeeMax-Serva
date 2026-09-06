@@ -9,6 +9,8 @@ import {
   icon,
   title,
   table,
+  pager,
+  slicePage,
   options,
   empty,
   canWrite,
@@ -66,6 +68,34 @@ function content() {
   const data = w();
   if (data.integration && ["access", "connection"].includes(state.tab))
     return `<div class="config-title"><div><h2>${state.tab === "connection" ? "MCP 数据连接" : "主动推送权限"}</h2><p>${state.tab === "connection" ? "已通过服务端连接 MCP；凭据不返回浏览器。QiWe 凭据管理接口尚未提供。" : "当前 MCP 未提供实例白名单接口，路由群不等同于主动推送授权群。"}</p></div></div>`;
+  const matches = (...values: unknown[]) =>
+    values.join(" ").toLowerCase().includes(state.query.trim().toLowerCase());
+  const routes = data.routes.filter(
+    (r) =>
+      (!state.group || r.groupId === state.group) &&
+      matches(r.type, r.keywords, groupName(r.groupId)),
+  );
+  const people = data.people.filter(
+    (p) =>
+      (!state.group || p.groupId === state.group) &&
+      (!state.tier || String(p.tier) === state.tier) &&
+      matches(p.name, groupName(p.groupId)),
+  );
+  const audit = data.audit.filter((a) =>
+    matches(a.actor, auditNames[a.action] || a.action, a.target, a.detail),
+  );
+  const filterBar = (placeholder: string, groups = false, tiers = false) =>
+    `<div class="staff-toolbar"><div class="staff-controls"><label class="staff-search">${icon("search")}<input id="search" aria-label="搜索配置记录" placeholder="${esc(placeholder)}" value="${esc(state.query)}"></label>${groups ? `<label class="staff-group"><span>小组</span><select data-filter="group" aria-label="筛选配置小组">${options(data.groups, state.group, "全部小组")}</select></label>` : ""}${
+      tiers
+        ? `<label class="staff-group"><span>档位</span><select data-filter="tier" aria-label="筛选档位">${options(
+            [...new Set(data.people.map((p) => p.tier))]
+              .sort((a, b) => a - b)
+              .map((n) => ({ id: String(n), name: n + " 档" })),
+            state.tier,
+            "全部档位",
+          )}</select></label>`
+        : ""
+    }${button("重置", "reset", false, !state.query && !state.group && !state.tier)}</div></div>`;
   switch (state.tab) {
     case "routing":
       return (
@@ -73,27 +103,37 @@ function content() {
         (data.integration
           ? `<div class="note-band">路由来自远端生效配置；当前接口仅提供读取。</div>`
           : "") +
+        filterBar("搜索类型或关键词", true) +
         table(
           ["问题类型", "关键词", "处理小组", "来源", "操作"],
-          data.routes.map(
+          slicePage(routes).map(
             (r) =>
               `<tr><td>${esc(r.type)}</td><td>${esc(r.keywords)}</td><td>${esc(groupName(r.groupId))}</td><td>${tag(r.source)}</td><td><button class="text-link" data-route="${esc(r.id)}" ${canWrite("route.save") ? "" : "disabled"}>编辑</button> <button class="text-link" data-delete-route="${esc(r.id)}" ${canWrite("route.delete") ? "" : "disabled"}>删除</button></td></tr>`,
           ),
-        )
+        ) +
+        pager(routes.length)
       );
     case "roster":
       return (
-        `<div class="config-title"><div><h2>人员与默认排班</h2><p>按小组、档位和在岗状态配置接单人员。</p></div>${button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
+        `<div class="config-title"><div><h2>人员与默认排班</h2><p>${data.integration ? "按小组和档位查看人员与默认排班。" : "按小组、档位和在岗状态配置接单人员。"}</p></div>${data.integration ? tag("仅查看") : button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
         (data.integration
           ? `<div class="note-band">${esc(data.integration.rosterNote)} 当前接口仅支持读取。</div>`
           : "") +
+        filterBar("搜索姓名或小组", true, true) +
         table(
-          ["人员", "小组", "档位", "在岗", "操作"],
-          data.people.map(
+          [
+            "人员",
+            "小组",
+            "档位",
+            data.integration ? "排班说明" : "在岗",
+            ...(data.integration ? [] : ["操作"]),
+          ],
+          slicePage(people).map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td><td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td></tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? "" : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
           ),
-        )
+        ) +
+        pager(people.length)
       );
     case "parameters":
       return `<div class="config-title"><div><h2>派单与提醒</h2><p>分钟为单位，保存前核对变更。${data.integration ? "每次只修改一项；接单后完成提醒须为 60 分钟的倍数。" : ""}</p></div>${button("编辑参数", "parameters", false, !canWrite("parameters.save"))}</div>${[
@@ -110,7 +150,14 @@ function content() {
         )
         .join("")}`;
     case "access":
-      return `<div class="config-title"><div><h2>群与人员权限</h2><p>主动推送按实例授权。人员在岗与档位在排班中管理。</p></div></div>${data.accounts.map((a) => `<div class="config-row"><div><h3>${esc(a.name)}</h3><p>${a.groups.length} 个已授权群</p></div><button class="button" data-agent="${a.id}">管理授权群 →</button></div>`).join("")}`;
+      return `<div class="config-title"><div><h2>群与人员权限</h2><p>主动推送按实例授权。人员在岗与档位在排班中管理。</p></div></div>${slicePage(
+        data.accounts,
+      )
+        .map(
+          (a) =>
+            `<div class="config-row"><div><h3>${esc(a.name)}</h3><p>${a.groups.length} 个已授权群</p></div><button class="button" data-agent="${a.id}">管理授权群 →</button></div>`,
+        )
+        .join("")}${pager(data.accounts.length)}`;
     case "learning":
       return `<div class="config-title"><div><h2>学习与灰度</h2><p>修改后由后端保存配置。</p></div></div>${[
         ["autoApply", "转单学习自动应用"],
@@ -126,13 +173,15 @@ function content() {
     default:
       return (
         `<div class="config-title"><div><h2>配置与操作记录</h2><p>时间、操作人、目标和变更内容。</p></div></div>` +
+        filterBar("搜索操作人、操作或内容") +
         table(
           ["时间", "操作人", "操作", "目标", "内容"],
-          data.audit.map(
+          slicePage(audit).map(
             (a) =>
               `<tr><td>${fmt(a.at)}</td><td>${esc(a.actor)}</td><td>${esc(auditNames[a.action] || a.action)}</td><td>${esc(a.target || "—")}</td><td>${esc(a.detail)}</td></tr>`,
           ),
-        )
+        ) +
+        pager(audit.length)
       );
   }
 }
@@ -382,14 +431,18 @@ export function editPlan(id = "") {
 export function showPlans() {
   modal(
     "自动分析设置",
-    `<div class="plan-manager">${w()
-      .plans.map(
+    `<div class="plan-manager">${slicePage(
+      w().plans,
+      state.pageSize,
+      "plans-modal",
+    )
+      .map(
         (p) =>
-          `<div class="plan-manager-row"><div><strong>${esc(p.name)}</strong><small>${p.enabled ? "已开启" : "已停用"} · 下次 ${fmt(p.nextRun)}</small></div><button class="button" type="button" data-plan="${esc(p.id)}">编辑</button><button class="text-link" type="button" data-delete-plan="${esc(p.id)}">删除</button></div>`,
+          `<div class="plan-manager-row"><div><strong>${esc(p.name)}</strong><small>${p.enabled ? "已开启" : "已停用"} · 下次 ${fmt(p.nextRun)}</small></div><button class="button" type="button" data-plan="${esc(p.id)}" ${canWrite() ? "" : "disabled"}>编辑</button><button class="text-link" type="button" data-delete-plan="${esc(p.id)}" ${canWrite() ? "" : "disabled"}>删除</button></div>`,
       )
       .join(
         "",
-      )}</div><button type="button" class="button" data-action="add-plan">新增自定义计划</button>`,
+      )}</div>${pager(w().plans.length, state.pageSize, "plans-modal")}<button type="button" class="button" data-action="add-plan" ${canWrite() ? "" : "disabled"}>新增自定义计划</button>`,
   );
 }
 export function analyze() {

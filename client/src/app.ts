@@ -1,6 +1,8 @@
 import type { Metrics } from "../../shared/domain.js";
 import {
   state,
+  currentPage,
+  setPage,
   w,
   esc,
   fmt,
@@ -100,9 +102,15 @@ function renderContent() {
     map[state.page] || pages.overview
   )();
   if (w().integration) {
-    const notice = document.createElement("div");
-    notice.className = "note-band";
-    notice.textContent = w().integration!.notices.join(" ");
+    const notice = document.createElement("details");
+    notice.className = "data-coverage";
+    const summary = document.createElement("summary"),
+      description = document.createElement("p");
+    summary.textContent = w().integration!.complete
+      ? "业务数据已同步 · 查看数据说明"
+      : "仅加载部分业务数据 · 查看统计范围";
+    description.textContent = w().integration!.notices.join(" ");
+    notice.append(summary, description);
     document.querySelector("#content")!.prepend(notice);
   }
   const auto = document.querySelector<HTMLInputElement>("#message-auto");
@@ -147,9 +155,31 @@ function navigate(page: string) {
     renderAssistant();
   } else location.hash = page;
 }
+function focusPagedList(scope: string) {
+  const container = document
+    .querySelector(`[data-pagination="${scope}"]`)
+    ?.closest<HTMLElement>("section, aside, dialog");
+  const target = container?.querySelector<HTMLElement>("h2") || container;
+  if (target) {
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+  }
+  container?.scrollIntoView({ block: "start" });
+}
+function renderPaging(scope: string) {
+  if (scope === "plans-modal") showPlans();
+  else renderContent();
+  focusPagedList(scope);
+}
 async function handleClick(e: MouseEvent) {
   const b = (e.target as Element).closest<HTMLButtonElement>("button");
   if (!b || b.disabled) return;
+  if (b.dataset.pageStep) {
+    const scope = b.dataset.pageScope || "main";
+    setPage(currentPage(scope) + Number(b.dataset.pageStep), scope);
+    renderPaging(scope);
+    return;
+  }
   const a = b.dataset.action;
   if (a === "nav") {
     document.body.classList.toggle("nav-open");
@@ -183,7 +213,14 @@ async function handleClick(e: MouseEvent) {
   }
   if (b.dataset.tab) {
     state.tab = b.dataset.tab;
+    state.query = "";
+    state.group = "";
+    state.tier = "";
+    state.listPage = 1;
     renderContent();
+    document
+      .querySelector<HTMLElement>(`[data-tab="${state.tab}"]`)
+      ?.focus({ preventScroll: true });
     return;
   }
   if (b.dataset.period) {
@@ -299,32 +336,9 @@ async function handleClick(e: MouseEvent) {
       state.query = "";
       state.status = "";
       state.group = "";
+      state.tier = "";
       state.listPage = 1;
       renderContent();
-    },
-    prev: () => {
-      state.listPage--;
-      renderContent();
-      if (state.page === "staff") {
-        document
-          .querySelector<HTMLElement>(".staff-ledger-title h2")
-          ?.focus({ preventScroll: true });
-        document
-          .querySelector(".staff-panel")
-          ?.scrollIntoView({ block: "start" });
-      }
-    },
-    next: () => {
-      state.listPage++;
-      renderContent();
-      if (state.page === "staff") {
-        document
-          .querySelector<HTMLElement>(".staff-ledger-title h2")
-          ?.focus({ preventScroll: true });
-        document
-          .querySelector(".staff-panel")
-          ?.scrollIntoView({ block: "start" });
-      }
     },
     export: () => {
       const m = state.metrics!,
@@ -346,38 +360,51 @@ document.addEventListener("click", (e) => {
     toast(error instanceof Error ? error.message : "操作失败"),
   );
 });
+let composingSearch = false;
+function updateSearch(input: HTMLInputElement) {
+  if (input.id !== "search" || state.query === input.value) return;
+  const start = input.selectionStart,
+    end = input.selectionEnd;
+  state.query = input.value;
+  state.listPage = 1;
+  renderContent();
+  const next = document.querySelector<HTMLInputElement>("#search");
+  next?.focus({ preventScroll: true });
+  next?.setSelectionRange(start, end);
+}
+document.addEventListener("compositionstart", (e) => {
+  if ((e.target as HTMLInputElement).id === "search") composingSearch = true;
+});
+document.addEventListener("compositionend", (e) => {
+  composingSearch = false;
+  updateSearch(e.target as HTMLInputElement);
+});
 document.addEventListener("input", (e) => {
-  const input = e.target as HTMLInputElement;
-  if (input.id === "search") {
-    const pos = input.selectionStart;
-    state.query = input.value;
-    state.listPage = 1;
-    renderContent();
-    const next = document.querySelector<HTMLInputElement>("#search")!;
-    next.focus();
-    next.setSelectionRange(pos, pos);
-  }
+  if (!composingSearch && !(e as InputEvent).isComposing)
+    updateSearch(e.target as HTMLInputElement);
 });
 document.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
-  if (input.id === "staff-page-size") {
-    const size = Number(input.value);
+  if (input.dataset.pageSize) {
+    const size = Number(input.value),
+      scope = input.dataset.pageSize;
     if (![20, 30].includes(size)) return;
-    state.staffPageSize = size;
+    state.pageSize = size;
     state.listPage = 1;
+    state.extraPages = {};
     renderContent();
-    document
-      .querySelector<HTMLSelectElement>("#staff-page-size")
-      ?.focus({ preventScroll: true });
-    document.querySelector(".staff-panel")?.scrollIntoView({ block: "start" });
+    renderPaging(scope);
     return;
   }
   if (input.dataset.filter) {
     const key = input.dataset.filter as
-      "account" | "status" | "direction" | "messageType" | "group";
+      "account" | "status" | "direction" | "messageType" | "group" | "tier";
     state[key] = input.value;
     state.listPage = 1;
     renderContent();
+    document
+      .querySelector<HTMLElement>(`[data-filter="${key}"]`)
+      ?.focus({ preventScroll: true });
   }
   if (input.id === "show-secrets")
     document
@@ -438,7 +465,9 @@ window.addEventListener("hashchange", () => {
   state.query = "";
   state.status = "";
   state.group = "";
+  state.tier = "";
   state.listPage = 1;
+  state.extraPages = {};
   state.page = location.hash.slice(1) || "insights";
   document.body.classList.remove("nav-open");
   closeModal();
