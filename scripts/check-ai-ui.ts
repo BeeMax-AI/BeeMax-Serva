@@ -141,6 +141,28 @@ try {
   await page.locator("#chat-send").click();
   await page.waitForFunction(() => !document.querySelector("[data-chat-stop]"));
   assert.equal(chats.at(-1).context.reportId, "new-report");
+  assert.equal(
+    await page.locator(".report-library [data-pagination]").count(),
+    0,
+  );
+  boot.workspace.reports = Array.from({ length: 25 }, (_, i) => ({
+    ...boot.workspace.reports[0],
+    id: `history-${i}`,
+    name: `历史报告 ${i + 1}`,
+  }));
+  await page.reload();
+  await page.locator(".report-library > summary").click();
+  await page
+    .locator(".report-library")
+    .getByRole("button", { name: "下一页", exact: true })
+    .click();
+  assert.equal(await page.locator(".report-library[open]").count(), 1);
+  assert.equal(await page.locator("[data-report-select]").count(), 5);
+  await page.locator('[data-report-select="history-20"]').click();
+  assert.equal(await page.locator(".report-library[open]").count(), 0);
+  await page
+    .getByRole("heading", { name: "历史报告 21", exact: true })
+    .waitFor();
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
@@ -149,6 +171,7 @@ try {
       reportFollowup: true,
       nullMetricsPreserved: true,
       scriptInjectionEscaped: true,
+      historyPagination: true,
     }),
   );
 } finally {

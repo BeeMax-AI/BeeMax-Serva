@@ -250,6 +250,15 @@ function renderShell() {
 }
 function renderContent() {
   if (!state.boot) return;
+  const previousReport =
+    document.querySelector<HTMLElement>(".report-reading")?.dataset.reportId;
+  const expandedReportSections = new Set(
+    [
+      ...document.querySelectorAll<HTMLDetailsElement>(
+        "details[data-report-disclosure][open]",
+      ),
+    ].map((el) => el.dataset.reportDisclosure),
+  );
   const map: Record<string, () => string> = {
     overview: pages.overview,
     trends: pages.trends,
@@ -264,6 +273,16 @@ function renderContent() {
   document.querySelector("#content")!.innerHTML = (
     map[state.page] || pages.overview
   )();
+  if (
+    previousReport &&
+    document.querySelector<HTMLElement>(".report-reading")?.dataset.reportId ===
+      previousReport
+  )
+    document
+      .querySelectorAll<HTMLDetailsElement>("details[data-report-disclosure]")
+      .forEach((el) => {
+        el.open = expandedReportSections.has(el.dataset.reportDisclosure);
+      });
   const auto = document.querySelector<HTMLInputElement>("#message-auto");
   if (auto) auto.checked = messageAuto;
 }
@@ -533,6 +552,9 @@ async function handleClick(e: MouseEvent) {
     );
   }
   if (b.dataset.reportSelect) {
+    const library =
+      document.querySelector<HTMLDetailsElement>(".report-library");
+    if (library) library.open = false;
     state.report = b.dataset.reportSelect;
     renderContent();
     renderAssistant();

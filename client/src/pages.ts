@@ -334,50 +334,135 @@ export function messages() {
 }
 export function insights() {
   const reports = w().reports,
-    r = reports.find((r) => r.id === state.report) || reports[0];
+    r = reports.find((r) => r.id === state.report) || reports[0],
+    enabled = w().plans.filter((p) => p.enabled),
+    upcoming = [...enabled].sort((a, b) =>
+      a.nextRun.localeCompare(b.nextRun),
+    )[0];
   return (
     title(
       "AI智能分析",
-      "结合工单、处理记录与历史建议，持续复盘服务运营。",
-      button(`管理全部计划（${w().plans.length}）`, "plans") +
-        remoteActions() +
+      "查看运营表现，确定下一步行动。",
+      `<details class="insights-tools"><summary>数据查询</summary><div>${remoteActions()}</div></details>` +
+        button("分析计划", "plans") +
         button(`${icon("spark")}立即分析`, "analyze", true, !canWrite()),
     ) +
-    `${analysisTasks()}<section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
-      .plans.slice(0, 6)
-      .map(
-        (p) =>
-          `<button data-plan="${esc(p.id)}" class="schedule-preview" ${canWrite() ? "" : "disabled"}><strong>${esc(p.name)}</strong>${tag(p.enabled ? "开启" : "停用", p.enabled)}<small>下次：${p.nextRun.slice(0, 4)} / ${fmt(p.nextRun)}</small></button>`,
-      )
-      .join(
-        "",
-      )}</div></section><div class="report-workspace"><section class="panel report-main">${
-      r
-        ? `<div class="panel-heading"><div><div class="eyebrow">分析报告 · ${r.mode === "model" ? "AI" : "数据汇总"}</div><h2>${esc(r.name)}</h2><p class="subtext">${r.start} — ${r.end} · ${fmt(r.generatedAt)}</p></div>${tag(r.mode === "model" ? "AI 分析" : "规则汇总")}</div><div class="report-content"><p class="report-summary">${esc(r.summary)}</p>${reportFacts(r)}<div class="note-band">${esc(r.coverage)}</div>${r.findings?.length ? `<h3>AI 发现与推断</h3>${r.findings.map((f) => `<article class="live-advice"><h3>${esc(f.title)}</h3><p>${esc(f.detail)}</p><p class="subtext">依据：${esc(f.basis)}</p></article>`).join("")}` : ""}<h3>运营建议 ${r.advice.length}</h3>${r.advice.map((a) => `<article class="live-advice"><h3>${esc(a.title)} ${a.priority ? tag({ high: "优先处理", medium: "建议跟进", low: "持续观察" }[a.priority]) : ""}</h3><p><strong>数据依据</strong> ${esc(a.evidence)}</p><p><strong>建议行动</strong> ${esc(a.action)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div>${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${r.id}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></article>`).join("") || empty("暂无新建议，不对不足的数据作推断")}</div>`
-        : empty("尚无分析报告。选择日期生成首份报告，或等待周期计划运行。")
-    }</section><aside class="panel report-history"><div class="panel-heading"><h2 tabindex="-1">历史报告</h2></div>${
-      slicePage(reports, state.pageSize, "reports")
+    analysisTasks() +
+    (w().plans.length
+      ? `
+    <details class="insights-plans"><summary><span>自动分析 <strong>${enabled.length} 个计划开启</strong></span><span>${upcoming ? `下次运行 ${fmt(upcoming.nextRun)}` : "全部计划已暂停"}</span></summary>
+      <div class="live-schedules">${w()
+        .plans.slice(0, 6)
         .map(
-          (item) =>
-            `<button data-report-select="${item.id}" class="${item.id === r?.id ? "active" : ""}"><strong>${esc(item.name)}</strong><small>${item.start} — ${item.end}</small><small>${fmt(item.generatedAt)}</small></button>`,
+          (p) =>
+            `<button data-plan="${esc(p.id)}" class="schedule-preview" ${canWrite() ? "" : "disabled"}><strong>${esc(p.name)}</strong>${tag(p.enabled ? "开启" : "停用", p.enabled)}<small>下次：${fmt(p.nextRun)}</small></button>`,
         )
-        .join("") || empty("暂无历史报告")
-    }${pager(reports.length, state.pageSize, "reports")}</aside></div>`
+        .join("")}</div>
+    </details>`
+      : "") +
+    `
+    <section class="panel report-main report-reading" data-report-id="${esc(r?.id || "")}">
+      <header class="report-reading-header"><div>${r ? `<div class="report-heading-line"><h2>${esc(r.name)}</h2>${tag(r.mode === "model" ? "AI 分析" : "数据汇总")}</div><p>${esc(r.start === r.end ? r.start : `${r.start} — ${r.end}`)} <span>· 生成于 ${fmt(r.generatedAt)}</span></p>` : `<h2>运营分析报告</h2><p>选择日期，开始第一次分析。</p>`}</div>
+        <details class="report-library" data-report-disclosure="history"><summary>历史报告 <span>${reports.length}</span></summary><div class="report-library-menu"><div class="report-library-title">共 ${reports.length} 份报告</div>${
+          slicePage(reports, state.pageSize, "reports")
+            .map(
+              (item) =>
+                `<button data-report-select="${esc(item.id)}" class="${item.id === r?.id ? "active" : ""}" ${item.id === r?.id ? 'aria-current="true"' : ""}><strong>${esc(item.name)}</strong><small>${esc(item.start === item.end ? item.start : `${item.start} — ${item.end}`)}</small></button>`,
+            )
+            .join("") || empty("暂无历史报告")
+        }${reports.length > state.pageSize ? pager(reports.length, state.pageSize, "reports") : ""}</div></details>
+      </header>
+      ${
+        r
+          ? `<div class="report-content">
+        ${reportFacts(r)}
+        <section class="report-conclusion"><h3>本期结论</h3><p class="report-summary">${esc(r.summary)}</p></section>
+        <section class="report-actions-section"><div class="report-section-heading"><h3>建议行动 <span>${r.advice.length}</span></h3><span>展开查看依据与跟进操作</span></div>
+          ${
+            r.advice
+              .slice(0, 3)
+              .map((a, i) => reportAdvice(r, a, i))
+              .join("") || empty("暂无新建议")
+          }
+          ${
+            r.advice.length > 3
+              ? `<details class="report-more" data-report-disclosure="more"><summary>查看其余 ${r.advice.length - 3} 条建议</summary>${r.advice
+                  .slice(3)
+                  .map((a, i) => reportAdvice(r, a, i + 3))
+                  .join("")}</details>`
+              : ""
+          }
+        </section>
+        ${r.findings?.length ? `<details class="report-disclosure" data-report-disclosure="findings"><summary><span>主要发现 <small>${r.findings.length} 项 · AI 推断</small></span><span class="disclosure-hint">展开</span></summary><div class="report-disclosure-body">${r.findings.map((f) => `<article class="report-finding"><h4>${esc(f.title)}</h4><p>${esc(f.detail)}</p><small>依据：${esc(f.basis)}</small></article>`).join("")}</div></details>` : ""}
+        <details class="report-disclosure" data-report-disclosure="methods"><summary><span>数据范围与统计口径</span><span class="disclosure-hint">展开</span></summary><div class="report-disclosure-body"><p>${esc(r.coverage)}</p>${reportMeasures(
+          r,
+        )
+          .map(
+            (m) =>
+              `<div class="report-definition"><strong>${esc(m.name)}<span>${m.value === null ? "—" : esc(m.value)} ${esc(m.unit)}</span></strong><p>${esc(m.basis)}</p></div>`,
+          )
+          .join("")}</div></details>
+      </div>`
+          : empty("点击“立即分析”生成报告，或在“分析计划”中设置自动分析。")
+      }
+    </section>`
   );
 }
 
-function reportFacts(r: Report) {
-  if (r.dataMetrics)
-    return `<h3>数据事实</h3><div class="connection-kpis ai-report-metrics">${r.dataMetrics.map((m) => `<div><small>${esc(m.name)}</small><strong>${m.value === null ? "—" : esc(m.value)} <small>${esc(m.unit)}</small></strong><p class="subtext">${esc(m.basis)}</p></div>`).join("")}</div>`;
+function reportMeasures(r: Report) {
+  if (r.dataMetrics) return r.dataMetrics;
   const m = r.metrics;
   return m
-    ? rail([
-        ["期间新建", m.created, "单"],
-        ["期间闭环", m.closed, "单"],
-        ["净增积压", m.created - m.closed, "单"],
-        ["当前待闭环", m.open, "当前状态快照"],
-      ])
-    : "";
+    ? [
+        {
+          name: "期间新建",
+          value: m.created,
+          unit: "单",
+          basis: "所选期间创建的工单",
+        },
+        {
+          name: "期间闭环",
+          value: m.closed,
+          unit: "单",
+          basis: "所选期间闭环的工单，可能包含期间之前创建的记录",
+        },
+        {
+          name: "净增积压",
+          value: m.created - m.closed,
+          unit: "单",
+          basis: "期间新建减去期间闭环",
+        },
+        {
+          name: "当前待闭环",
+          value: m.open,
+          unit: "单",
+          basis: "当前状态快照，按全部非闭环状态统计",
+        },
+      ]
+    : [];
+}
+function reportFacts(r: Report) {
+  const measures = reportMeasures(r);
+  return `<div class="ai-report-metrics" aria-label="关键指标">${measures
+    .slice(0, 4)
+    .map(
+      (m) =>
+        `<div><span>${esc(m.name)}</span><strong>${m.value === null ? "—" : esc(m.value)}<small>${esc(m.unit)}</small></strong></div>`,
+    )
+    .join("")}</div>${
+    measures.length > 4
+      ? `<div class="report-secondary-metrics">${measures
+          .slice(4)
+          .map(
+            (m) =>
+              `<span>${esc(m.name)} <strong>${m.value === null ? "—" : esc(m.value)} ${esc(m.unit)}</strong></span>`,
+          )
+          .join("")}</div>`
+      : ""
+  }`;
+}
+function reportAdvice(r: Report, a: Report["advice"][number], i: number) {
+  return `<details class="report-advice" data-report-disclosure="${esc(a.id)}"><summary><span class="advice-number">${String(i + 1).padStart(2, "0")}</span><strong>${esc(a.title)}</strong><span class="advice-labels">${a.priority ? tag({ high: "优先处理", medium: "建议跟进", low: "持续观察" }[a.priority], a.priority === "high") : ""}${a.status !== "new" ? tag({ following: "跟进中", done: "已完成" }[a.status]) : ""}</span></summary><div class="report-advice-body">${a.action !== a.title ? `<p><strong>建议行动</strong> ${esc(a.action)}</p>` : ""}<p><strong>数据依据</strong> ${esc(a.evidence)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div class="report-advice-actions">${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${esc(r.id)}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></div></details>`;
 }
 function analysisTasks() {
   const tasks = state.boot?.analysisTasks || [];
