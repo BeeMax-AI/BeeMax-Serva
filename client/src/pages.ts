@@ -343,7 +343,7 @@ export function insights() {
         remoteActions() +
         button(`${icon("spark")}立即分析`, "analyze", true, !canWrite()),
     ) +
-    `<div class="note-band">${icon("spark")} ${(state.boot!.aiCapabilities?.analysis ?? state.boot!.aiConfigured) ? (state.boot!.aiCapabilities?.channel === "mcp" ? "MCP · AI 分析已接入" : "模型已配置 · 分析基于当前租户的数据") : "模型待配置 · 当前提供数据汇总与规则建议"}<br>报告保存在工作台，业务操作仍需人工确认。</div>${analysisTasks()}<section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
+    `${analysisTasks()}<section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
       .plans.slice(0, 6)
       .map(
         (p) =>
