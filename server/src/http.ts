@@ -15,6 +15,7 @@ import {
   type DataProvider,
 } from "./provider.ts";
 import { AnalysisService, aiConfigured } from "./ai.ts";
+import { McpAiService } from "./mcp-ai.ts";
 import { AppError, requireValue } from "./errors.ts";
 import { metrics } from "./metrics.ts";
 import { businessDate, addDays, validDate } from "./dates.ts";
@@ -63,7 +64,11 @@ export function createApp(
           : new PendingMcpProvider()
         : new LocalProvider(store),
     analysis =
-      provider instanceof LocalProvider ? new AnalysisService(provider) : null,
+      provider instanceof McpProvider
+        ? new McpAiService(provider)
+        : provider instanceof LocalProvider
+          ? new AnalysisService(provider)
+          : null,
     attempts = new Map<string, { count: number; until: number }>();
   const server = createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -167,7 +172,7 @@ export function createApp(
           );
           send(
             res,
-            201,
+            analysis instanceof McpAiService ? 202 : 201,
             await analysis.generate(
               actor,
               data,
@@ -180,6 +185,34 @@ export function createApp(
           if (!analysis)
             throw new AppError(503, "MCP_NOT_CONFIGURED", "尚未配置查询接口");
           send(res, 200, await analysis.chat(actor, await body(req)));
+          return;
+        }
+        if (pathname.startsWith("/api/analysis-tasks/") && method === "GET") {
+          requireValue(
+            analysis instanceof McpAiService,
+            "当前未接入 MCP 分析任务",
+            404,
+          );
+          send(
+            res,
+            200,
+            await analysis.getTask(
+              actor,
+              decodeURIComponent(pathname.slice("/api/analysis-tasks/".length)),
+            ),
+          );
+          return;
+        }
+        if (pathname === "/api/analysis-tasks" && method === "GET") {
+          requireValue(
+            analysis instanceof McpAiService && provider instanceof McpProvider,
+            "当前未接入 MCP 分析任务",
+            404,
+          );
+          send(res, 200, {
+            tasks: analysis.listTasks(actor),
+            reports: provider.readDashboard(actor).reports,
+          });
           return;
         }
         if (pathname.startsWith("/api/mcp/") && method === "GET") {
@@ -214,10 +247,21 @@ export function createApp(
         const w = await provider.read(actor);
         if (pathname === "/api/bootstrap" && method === "GET") {
           const { conversations, ...workspace } = w;
+          const capabilities =
+            analysis instanceof McpAiService
+              ? await analysis.capabilities(actor)
+              : {
+                  chat: aiConfigured(),
+                  analysis: aiConfigured(),
+                  channel: "direct" as const,
+                };
           const result: Bootstrap = {
             actor,
             mode: provider.mode,
-            aiConfigured: aiConfigured(),
+            aiConfigured: capabilities.chat || capabilities.analysis,
+            aiCapabilities: capabilities,
+            analysisTasks:
+              analysis instanceof McpAiService ? analysis.listTasks(actor) : [],
             workspace,
             conversations: conversations[actor.id] || [],
             today: businessDate(),

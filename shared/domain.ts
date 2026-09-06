@@ -107,6 +107,7 @@ export interface Advice {
   title: string;
   evidence: string;
   action: string;
+  priority?: "high" | "medium" | "low";
   status: "new" | "following" | "done";
   ownerId?: string;
   reviewAt?: string;
@@ -121,9 +122,26 @@ export interface Report {
   generatedAt: string;
   mode: "rules" | "model";
   summary: string;
-  metrics: Metrics;
+  metrics?: Metrics;
+  source?: "mcp";
+  dataMetrics?: {
+    name: string;
+    value: number | null;
+    unit: string;
+    basis: string;
+  }[];
+  findings?: { title: string; detail: string; basis: string }[];
   advice: Advice[];
   coverage: string;
+}
+export interface AnalysisTask {
+  id: string;
+  name: string;
+  status: "queued" | "running" | "completed" | "failed";
+  stage: string;
+  reportId?: string;
+  retryAfterSeconds: number;
+  error?: string;
 }
 export interface Metrics {
   total: number;
@@ -157,6 +175,8 @@ export interface Conversation {
     text: string;
     at: string;
     mode?: string;
+    coverage?: string;
+    references?: string[];
     ticketIds?: string[];
     context?: {
       page: string;
@@ -227,6 +247,12 @@ export interface Bootstrap {
   actor: Actor;
   mode: "local" | "mcp";
   aiConfigured: boolean;
+  aiCapabilities?: {
+    chat: boolean;
+    analysis: boolean;
+    channel: "mcp" | "direct";
+  };
+  analysisTasks?: AnalysisTask[];
   workspace: Omit<Workspace, "conversations">;
   conversations: Conversation[];
   today: string;

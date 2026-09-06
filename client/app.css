@@ -615,3 +615,7 @@ aside.panel {
   overflow: auto;
   line-height: 1.8;
 }
+
+.ai-report-metrics { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.ai-report-metrics strong { display: block; margin: 10px 0; }
+.report-summary { white-space: pre-wrap; }

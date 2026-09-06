@@ -1,5 +1,5 @@
 import { accessContent, connectionContent } from "./mcp.js";
-import type { Plan, Ticket } from "../../shared/domain.js";
+import type { Plan, Ticket, AnalysisTask } from "../../shared/domain.js";
 import {
   state,
   w,
@@ -486,6 +486,7 @@ export function showPlans() {
   );
 }
 export function analyze() {
+  const requestId = crypto.randomUUID();
   modal(
     "选择本次分析范围",
     `<p>从当前租户记录生成报告，并标注覆盖范围。</p>` +
@@ -504,20 +505,29 @@ export function analyze() {
         `required max="${state.boot!.today}"`,
       ),
     {
-      label: state.boot!.aiConfigured ? "生成 AI 分析" : "生成数据分析",
+      label:
+        (state.boot!.aiCapabilities?.analysis ?? state.boot!.aiConfigured)
+          ? "生成 AI 分析"
+          : "生成数据分析",
       run: async (form) => {
         const d = formData(form);
         if (d.start > d.end) throw new Error("开始日期不能晚于结束日期");
-        const report = await post<{ id: string }>("/reports", {
+        const report = await post<{ id: string } | AnalysisTask>("/reports", {
           ...d,
-          requestId: crypto.randomUUID(),
+          requestId,
           name: "自定义运营分析",
         });
         await refresh();
-        state.report = report.id;
+        if (!("status" in report)) state.report = report.id;
+        else if (report.status === "completed" && report.reportId)
+          state.report = report.reportId;
         closeModal();
         window.dispatchEvent(new Event("data-updated"));
-        toast("报告已生成并保存");
+        toast(
+          "status" in report && report.status !== "completed"
+            ? "分析任务已提交，可在 AI智能分析查看进度"
+            : "报告已生成并保存",
+        );
       },
     },
   );

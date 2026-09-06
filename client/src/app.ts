@@ -1,3 +1,4 @@
+import { pollAnalysisTasks } from "./analysis-tasks.js";
 import { metrics } from "../../shared/metrics.js";
 import {
   SyncSchedule,
@@ -748,3 +749,17 @@ window.addEventListener("session-expired", () => {
   login();
 });
 void load();
+
+let analysisChanged = false;
+window.setInterval(async () => {
+  analysisChanged = (await pollAnalysisTasks()) || analysisChanged;
+  if (
+    analysisChanged &&
+    state.boot &&
+    state.page === "insights" &&
+    !document.querySelector<HTMLDialogElement>("#modal")?.open
+  ) {
+    renderContent();
+    analysisChanged = false;
+  }
+}, 2000);

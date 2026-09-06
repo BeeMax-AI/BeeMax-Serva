@@ -27,13 +27,14 @@ export class McpClient {
     method: string,
     params: unknown,
     notification = false,
+    timeoutMs = 20000,
   ): Promise<any> {
     const id = ++this.sequence;
     try {
       const response = await fetch(this.config.url, {
         method: "POST",
         redirect: "error",
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(timeoutMs),
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json, text/event-stream",
@@ -153,7 +154,11 @@ export class McpClient {
       });
     await this.discovering;
   }
-  async call(name: string, args: Record<string, unknown> = {}): Promise<any> {
+  async call(
+    name: string,
+    args: Record<string, unknown> = {},
+    timeoutMs = 20000,
+  ): Promise<any> {
     await this.initialize();
     if (!this.tools.has(name))
       throw new AppError(
@@ -161,7 +166,12 @@ export class McpClient {
         "MCP_TOOL_MISSING",
         `当前 MCP 未提供 ${name} 工具`,
       );
-    const result = await this.rpc("tools/call", { name, arguments: args });
+    const result = await this.rpc(
+      "tools/call",
+      { name, arguments: args },
+      false,
+      timeoutMs,
+    );
     if (result.isError)
       throw new AppError(
         502,

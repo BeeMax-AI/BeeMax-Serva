@@ -1,6 +1,6 @@
 import { remoteActions } from "./mcp.js";
 import { statuses } from "../../shared/domain.js";
-import type { Metrics, Ticket } from "../../shared/domain.js";
+import type { Metrics, Ticket, Report } from "../../shared/domain.js";
 import {
   state,
   w,
@@ -343,7 +343,7 @@ export function insights() {
         remoteActions() +
         button(`${icon("spark")}立即分析`, "analyze", true, !canWrite()),
     ) +
-    `<div class="note-band">${icon("spark")} ${state.boot!.aiConfigured ? "模型已配置 · 分析基于当前租户的数据" : "模型待配置 · 当前提供数据汇总与规则建议"}<br>报告保存在工作台，业务操作仍需人工确认。</div><section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
+    `<div class="note-band">${icon("spark")} ${(state.boot!.aiCapabilities?.analysis ?? state.boot!.aiConfigured) ? (state.boot!.aiCapabilities?.channel === "mcp" ? "MCP · AI 分析已接入" : "模型已配置 · 分析基于当前租户的数据") : "模型待配置 · 当前提供数据汇总与规则建议"}<br>报告保存在工作台，业务操作仍需人工确认。</div>${analysisTasks()}<section class="panel plans-summary"><div class="panel-heading"><div><h2>周期分析计划</h2><span class="subtext">${w().plans.filter((p) => p.enabled).length} 个计划开启 · UTC+8</span></div>${button("自定义计划", "add-plan", false, !canWrite())}</div><div class="live-schedules">${w()
       .plans.slice(0, 6)
       .map(
         (p) =>
@@ -353,14 +353,7 @@ export function insights() {
         "",
       )}</div></section><div class="report-workspace"><section class="panel report-main">${
       r
-        ? `<div class="panel-heading"><div><div class="eyebrow">分析报告 · ${r.mode === "model" ? "AI" : "数据汇总"}</div><h2>${esc(r.name)}</h2><p class="subtext">${r.start} — ${r.end} · ${fmt(r.generatedAt)}</p></div>${tag(r.mode === "model" ? "AI 分析" : "规则汇总")}</div><div class="report-content"><p class="report-summary">${esc(r.summary)}</p>${rail(
-            [
-              ["期间新建", r.metrics.created, "单"],
-              ["期间闭环", r.metrics.closed, "单"],
-              ["净增积压", r.metrics.created - r.metrics.closed, "单"],
-              ["当前待闭环", r.metrics.open, "当前状态快照"],
-            ],
-          )}<div class="note-band">${esc(r.coverage)}</div><h3>运营建议 ${r.advice.length}</h3>${r.advice.map((a) => `<article class="live-advice"><h3>${esc(a.title)}</h3><p><strong>数据依据</strong> ${esc(a.evidence)}</p><p><strong>建议行动</strong> ${esc(a.action)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div>${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${r.id}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></article>`).join("") || empty("暂无新建议，不对不足的数据作推断")}</div>`
+        ? `<div class="panel-heading"><div><div class="eyebrow">分析报告 · ${r.mode === "model" ? "AI" : "数据汇总"}</div><h2>${esc(r.name)}</h2><p class="subtext">${r.start} — ${r.end} · ${fmt(r.generatedAt)}</p></div>${tag(r.mode === "model" ? "AI 分析" : "规则汇总")}</div><div class="report-content"><p class="report-summary">${esc(r.summary)}</p>${reportFacts(r)}<div class="note-band">${esc(r.coverage)}</div>${r.findings?.length ? `<h3>AI 发现与推断</h3>${r.findings.map((f) => `<article class="live-advice"><h3>${esc(f.title)}</h3><p>${esc(f.detail)}</p><p class="subtext">依据：${esc(f.basis)}</p></article>`).join("")}` : ""}<h3>运营建议 ${r.advice.length}</h3>${r.advice.map((a) => `<article class="live-advice"><h3>${esc(a.title)} ${a.priority ? tag({ high: "优先处理", medium: "建议跟进", low: "持续观察" }[a.priority]) : ""}</h3><p><strong>数据依据</strong> ${esc(a.evidence)}</p><p><strong>建议行动</strong> ${esc(a.action)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div>${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${r.id}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></article>`).join("") || empty("暂无新建议，不对不足的数据作推断")}</div>`
         : empty("尚无分析报告。选择日期生成首份报告，或等待周期计划运行。")
     }</section><aside class="panel report-history"><div class="panel-heading"><h2 tabindex="-1">历史报告</h2></div>${
       slicePage(reports, state.pageSize, "reports")
@@ -371,4 +364,24 @@ export function insights() {
         .join("") || empty("暂无历史报告")
     }${pager(reports.length, state.pageSize, "reports")}</aside></div>`
   );
+}
+
+function reportFacts(r: Report) {
+  if (r.dataMetrics)
+    return `<h3>数据事实</h3><div class="connection-kpis ai-report-metrics">${r.dataMetrics.map((m) => `<div><small>${esc(m.name)}</small><strong>${m.value === null ? "—" : esc(m.value)} <small>${esc(m.unit)}</small></strong><p class="subtext">${esc(m.basis)}</p></div>`).join("")}</div>`;
+  const m = r.metrics;
+  return m
+    ? rail([
+        ["期间新建", m.created, "单"],
+        ["期间闭环", m.closed, "单"],
+        ["净增积压", m.created - m.closed, "单"],
+        ["当前待闭环", m.open, "当前状态快照"],
+      ])
+    : "";
+}
+function analysisTasks() {
+  const tasks = state.boot?.analysisTasks || [];
+  return tasks.length
+    ? `<section class="panel"><div class="panel-heading"><h2>分析任务</h2></div>${tasks.map((t) => `<div class="note-band" role="status"><strong>${esc(t.name)}</strong> · ${esc(t.stage)}${t.error ? `<p>${esc(t.error)}</p>` : ""}<small>${t.status === "failed" ? "可重新发起分析" : "后台处理中，可以继续使用其他页面"}</small></div>`).join("")}</section>`
+    : "";
 }

@@ -4,6 +4,7 @@ let generation = 0,
   pinnedTicket = "";
 const readings = new Map<string, { top: number; bottom: boolean }>(),
   drafts = new Map<string, string>();
+let lastAttempt: { fingerprint: string; requestId: string } | undefined;
 let opened = false,
   expanded = false,
   contextEnabled = true,
@@ -15,6 +16,14 @@ type Frame = { left: number; top: number; width: number; height: number };
 let frame: Frame | null = null,
   compactFrame: Frame | null = null,
   expandedFrame: Frame | null = null;
+function selectedChatReport() {
+  const report =
+    w().reports.find((r) => r.id === state.report) || w().reports[0];
+  return state.boot?.aiCapabilities?.channel === "mcp" &&
+    report?.source !== "mcp"
+    ? undefined
+    : report;
+}
 const root = () => document.querySelector<HTMLElement>("#assistant-root")!;
 export function resetAssistant() {
   generation++;
@@ -47,7 +56,7 @@ export function renderAssistant() {
     reading = readings.get(readingKey),
     current = state.boot.conversations.find((c) => c.id === currentId);
   root().innerHTML = opened
-    ? `<aside id="assistant-widget" data-reading-key="${esc(readingKey)}" class="assistant-widget ${expanded ? "assistant-expanded" : ""}" role="dialog" aria-modal="false" aria-label="AI助手"><div class="assistant-widget-head"><div><img src="/assets/beemax-logo-mark.svg" alt=""><div><strong>AI助手</strong><small>查询数据，继续手头的工作</small></div></div><div><button class="icon-button" data-chat-new aria-label="新对话" ${pending ? "disabled" : ""}>${icon("plus")}</button><button class="icon-button" data-chat-expand aria-label="${expanded ? "还原" : "放大"}AI助手">${icon("expand")}</button><button class="icon-button" data-chat-close aria-label="收起AI助手">${icon("close")}</button></div></div><div class="assistant-page-context"><span>当前上下文：<strong>${contextEnabled ? esc(pinnedTicket ? `工单 ${pinnedTicket}` : state.page === "insights" ? (w().reports.find((r) => r.id === state.report) || w().reports[0])?.name || "AI智能分析" : document.querySelector("#crumb")?.textContent || "工作空间") : "不引用当前页面"}</strong></span><button class="text-link" data-chat-context>${contextEnabled ? "清除" : "引用"}</button></div><div class="chat-history-select"><label>对话记录<select id="chat-history" ${pending ? "disabled" : ""}><option value="">新对话</option>${state.boot.conversations.map((c) => `<option value="${c.id}" ${c.id === currentId ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label></div><div class="chat-messages" role="log" aria-label="对话记录" aria-live="polite">${current?.messages.length ? current.messages.map((m) => `<div class="${m.role === "user" ? "chat-user" : "chat-reply"}"><div><strong>${m.role === "user" ? "我" : "AI助手"} ${m.mode ? `<small>${esc(m.mode)}</small>` : ""}</strong><p class="message-text">${esc(m.text)}</p>${m.ticketIds?.map((id) => `<button class="button" data-ticket="${esc(id)}">${esc(id)} →</button>`).join("") || ""}<small>${fmt(m.at)}${m.context?.label ? " · " + esc(m.context.label) : ""}</small></div></div>`).join("") : `<div class="widget-welcome"><h2>需要我帮你查什么？</h2><p>${w().integration ? "查询工单、处理人与运营汇总。" : "查询工单、人员、账号与运营汇总。"}</p><button class="button" data-chat-prompt="今天有哪些工单？">看看当前工单 →</button></div>`}${pending ? '<div class="note-band" role="status">正在查询并组织回答…</div>' : ""}</div><form id="chat-form" class="chat-composer"><label class="visually-hidden" for="chat-input">向AI助手提问</label><textarea id="chat-input" maxlength="2000" rows="2" placeholder="输入问题，或继续追问…">${esc(draft)}</textarea><div class="composer-controls"><span>Enter 发送 · Shift + Enter 换行</span>${pending ? '<button type="button" class="button" data-chat-stop>停止等待</button>' : `<button class="button primary" ${draft.trim() ? "" : "disabled"} id="chat-send">发送 →</button>`}</div></form><div class="chat-disclosure">${state.boot.aiConfigured ? "模型已配置" : "模型待配置 · 数据查询模式"} · 操作需确认</div>${["n", "s", "e", "w", "ne", "nw", "se", "sw"].map((dir) => `<button class="assistant-resize-handle resize-${dir}" data-resize="${dir}" aria-label="调整助手${dir}方向大小" title="拖动调整大小" ${dir === "se" ? "" : 'tabindex="-1"'}></button>`).join("")}</aside>`
+    ? `<aside id="assistant-widget" data-reading-key="${esc(readingKey)}" class="assistant-widget ${expanded ? "assistant-expanded" : ""}" role="dialog" aria-modal="false" aria-label="AI助手"><div class="assistant-widget-head"><div><img src="/assets/beemax-logo-mark.svg" alt=""><div><strong>AI助手</strong><small>查询数据，继续手头的工作</small></div></div><div><button class="icon-button" data-chat-new aria-label="新对话" ${pending ? "disabled" : ""}>${icon("plus")}</button><button class="icon-button" data-chat-expand aria-label="${expanded ? "还原" : "放大"}AI助手">${icon("expand")}</button><button class="icon-button" data-chat-close aria-label="收起AI助手">${icon("close")}</button></div></div><div class="assistant-page-context"><span>当前上下文：<strong>${contextEnabled ? esc(pinnedTicket ? `工单 ${pinnedTicket}` : state.page === "insights" ? selectedChatReport()?.name || "AI智能分析" : document.querySelector("#crumb")?.textContent || "工作空间") : "不引用当前页面"}</strong></span><button class="text-link" data-chat-context>${contextEnabled ? "清除" : "引用"}</button></div><div class="chat-history-select"><label>对话记录<select id="chat-history" ${pending ? "disabled" : ""}><option value="">新对话</option>${state.boot.conversations.map((c) => `<option value="${c.id}" ${c.id === currentId ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label></div><div class="chat-messages" role="log" aria-label="对话记录" aria-live="polite">${current?.messages.length ? current.messages.map((m) => `<div class="${m.role === "user" ? "chat-user" : "chat-reply"}"><div><strong>${m.role === "user" ? "我" : "AI助手"} ${m.mode ? `<small>${esc(m.mode)}</small>` : ""}</strong><p class="message-text">${esc(m.text)}</p>${m.coverage ? `<p class="subtext">数据范围：${esc(m.coverage)}</p>` : ""}${m.references?.length ? `<p class="subtext">参考：${m.references.map((r) => esc(r)).join("；")}</p>` : ""}${m.ticketIds?.map((id) => `<button class="button" data-ticket="${esc(id)}">${esc(id)} →</button>`).join("") || ""}<small>${fmt(m.at)}${m.context?.label ? " · " + esc(m.context.label) : ""}</small></div></div>`).join("") : `<div class="widget-welcome"><h2>需要我帮你查什么？</h2><p>${w().integration ? "查询工单、处理人与运营汇总。" : "查询工单、人员、账号与运营汇总。"}</p><button class="button" data-chat-prompt="今天有哪些工单？">看看当前工单 →</button></div>`}${pending ? '<div class="note-band" role="status">正在查询并组织回答…</div>' : ""}</div><form id="chat-form" class="chat-composer"><label class="visually-hidden" for="chat-input">向AI助手提问</label><textarea id="chat-input" maxlength="2000" rows="2" placeholder="输入问题，或继续追问…">${esc(draft)}</textarea><div class="composer-controls"><span>Enter 发送 · Shift + Enter 换行</span>${pending ? '<button type="button" class="button" data-chat-stop>停止等待</button>' : `<button class="button primary" ${draft.trim() ? "" : "disabled"} id="chat-send">发送 →</button>`}</div></form><div class="chat-disclosure">${(state.boot.aiCapabilities?.chat ?? state.boot.aiConfigured) ? (state.boot.aiCapabilities?.channel === "mcp" ? "MCP · AI助手已接入" : "模型已配置") : "模型待配置 · 数据查询模式"} · 操作需确认</div>${["n", "s", "e", "w", "ne", "nw", "se", "sw"].map((dir) => `<button class="assistant-resize-handle resize-${dir}" data-resize="${dir}" aria-label="调整助手${dir}方向大小" title="拖动调整大小" ${dir === "se" ? "" : 'tabindex="-1"'}></button>`).join("")}</aside>`
     : `<button class="assistant-launcher" data-chat-open aria-label="打开AI助手">${icon("chat")}AI助手</button>`;
   applyFrame();
   const next = root().querySelector<HTMLElement>(".chat-messages");
@@ -109,21 +118,31 @@ async function submit() {
   controller = new AbortController();
   renderAssistant();
   try {
+    const context = contextEnabled
+      ? {
+          page: state.page,
+          ...(pinnedTicket ? { ticketId: pinnedTicket } : {}),
+          ...(state.page === "insights" && selectedChatReport()
+            ? { reportId: selectedChatReport()!.id }
+            : {}),
+        }
+      : undefined;
+    const fingerprint = JSON.stringify([
+      state.boot!.actor.tenantId,
+      state.boot!.actor.id,
+      currentId,
+      question,
+      context,
+    ]);
+    if (lastAttempt?.fingerprint !== fingerprint)
+      lastAttempt = { fingerprint, requestId: crypto.randomUUID() };
     const result = await post<Conversation>(
       "/chat",
       {
         question,
+        requestId: lastAttempt.requestId,
         ...(currentId ? { conversationId: currentId } : {}),
-        context: contextEnabled
-          ? {
-              page: state.page,
-              ...(pinnedTicket ? { ticketId: pinnedTicket } : {}),
-              ...(state.page === "insights" &&
-              (state.report || w().reports[0]?.id)
-                ? { reportId: state.report || w().reports[0].id }
-                : {}),
-            }
-          : undefined,
+        context,
       },
       controller.signal,
     );
@@ -132,6 +151,7 @@ async function submit() {
     if (i < 0) state.boot.conversations.unshift(result);
     else state.boot.conversations[i] = result;
     currentId = result.id;
+    lastAttempt = undefined;
   } catch (error) {
     if (turn !== generation) return;
     if (!draft) draft = question;
