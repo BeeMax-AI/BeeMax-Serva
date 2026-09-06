@@ -1,4 +1,10 @@
 import {
+  SyncSchedule,
+  readSyncMinutes,
+  validSyncMinutes,
+  type SyncOutcome,
+} from "../../shared/sync.js";
+import {
   queryAnalytics,
   queryReport,
   showScheduleRules,
@@ -6,7 +12,7 @@ import {
   editRosterPerson,
   editAccess,
 } from "./mcp.js";
-import type { Metrics } from "../../shared/domain.js";
+import type { Bootstrap, Metrics } from "../../shared/domain.js";
 import {
   state,
   currentPage,
@@ -65,7 +71,151 @@ const navs = [
 let loadSequence = 0,
   messageAuto = false,
   refreshTimer: number;
+const syncSchedule = new SyncSchedule();
+let syncIdentity = "",
+  syncKey = "",
+  syncPhase: "synced" | "syncing" | "failed" = "synced",
+  syncTimer: number | undefined;
+function dirtyPageForm() {
+  return [
+    ...document.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >("#content form input, #content form textarea, #content form select"),
+  ].some((input) => {
+    if (input instanceof HTMLSelectElement)
+      return [...input.options].some((o) => o.selected !== o.defaultSelected);
+    if (
+      input instanceof HTMLInputElement &&
+      ["checkbox", "radio"].includes(input.type)
+    )
+      return input.checked !== input.defaultChecked;
+    return input.value !== input.defaultValue;
+  });
+}
+function restoreSyncFocus(previous: HTMLElement | null) {
+  if (!previous || previous === document.body || previous.isConnected) return;
+  const attrs = [...previous.attributes].filter(
+    (a) =>
+      a.name === "id" ||
+      a.name === "href" ||
+      a.name === "aria-label" ||
+      a.name.startsWith("data-"),
+  );
+  const replacement = [
+    ...document.querySelectorAll<HTMLElement>(previous.tagName),
+  ].find(
+    (el) =>
+      attrs.every((a) => el.getAttribute(a.name) === a.value) &&
+      el.textContent === previous.textContent,
+  );
+  if (replacement && !replacement.matches(":disabled"))
+    replacement.focus({ preventScroll: true });
+  else {
+    const heading = document.querySelector<HTMLElement>("#content h1");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+  }
+}
+function syncBlocked() {
+  return (
+    document.hidden ||
+    dirtyPageForm() ||
+    !!document.querySelector<HTMLDialogElement>("#modal")?.open ||
+    !!document.activeElement?.matches(
+      "input, textarea, select, [contenteditable=true]",
+    ) ||
+    !!document.querySelector("[data-chat-stop]")
+  );
+}
+function syncStatus() {
+  const b = document.querySelector<HTMLButtonElement>("#sync-status");
+  if (!b) return;
+  const label =
+    syncPhase === "syncing"
+      ? "正在同步"
+      : syncPhase === "failed"
+        ? "同步失败"
+        : w().integration?.complete === false
+          ? "部分数据已同步"
+          : "数据已同步";
+  b.dataset.syncedAt = w().integration?.checkedAt || "";
+  b.dataset.state =
+    syncPhase === "synced" && w().integration?.complete === false
+      ? "partial"
+      : syncPhase;
+  b.innerHTML = `<span class="sync-dot" aria-hidden="true"></span><span>${label}</span>`;
+  b.title = `每 ${syncSchedule.minutes} 分钟自动同步 · 点击设置周期`;
+  b.setAttribute("aria-label", `${label}，设置同步周期`);
+}
+function startDataSync() {
+  if (!state.boot || state.boot.mode !== "mcp") return;
+  const identity = JSON.stringify([
+    state.boot.actor.tenantId,
+    state.boot.actor.id,
+  ]);
+  if (syncIdentity !== identity) {
+    syncIdentity = identity;
+    syncKey = "qf:sync-minutes:" + identity;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(syncKey);
+    } catch {
+      /* Private browsing can disable storage. */
+    }
+    syncSchedule.configure(readSyncMinutes(saved));
+  }
+  if (syncTimer === undefined)
+    syncTimer = window.setInterval(() => {
+      void syncSchedule.tick(
+        () => load(true),
+        () => !state.boot || state.boot.mode !== "mcp" || syncBlocked(),
+      );
+    }, 1000);
+  syncStatus();
+}
+function stopDataSync() {
+  clearInterval(syncTimer);
+  syncTimer = undefined;
+  syncIdentity = "";
+  ++loadSequence;
+}
+function editSync() {
+  const minutes = syncSchedule.minutes;
+  const dialog = modal(
+    "自动同步",
+    `<label>同步周期<select name="cycle"><option value="5" ${minutes === 5 ? "selected" : ""}>每 5 分钟</option><option value="10" ${minutes === 10 ? "selected" : ""}>每 10 分钟</option><option value="custom" ${![5, 10].includes(minutes) ? "selected" : ""}>自定义</option></select></label><div data-custom-sync ${[5, 10].includes(minutes) ? "hidden" : ""}>${field("间隔（分钟）", "minutes", String(minutes), "number", 'min="1" max="1440" step="1" required ' + ([5, 10].includes(minutes) ? "disabled" : ""))}</div><p>当前浏览器记住此设置，页面打开时自动同步。</p>`,
+    {
+      label: "保存",
+      run: (form) => {
+        const d = formData(form),
+          next = Number(d.cycle === "custom" ? d.minutes : d.cycle);
+        if (!validSyncMinutes(next))
+          throw new Error("请输入 1–1440 的整数分钟");
+        try {
+          localStorage.setItem(syncKey, String(next));
+        } catch {
+          throw new Error("浏览器无法保存设置，请允许本站使用本地存储后重试");
+        }
+        syncSchedule.configure(next);
+        closeModal();
+        syncStatus();
+        toast(`已设置每 ${next} 分钟自动同步`);
+      },
+    },
+  );
+  dialog.onchange = (e) => {
+    if ((e.target as HTMLSelectElement).name === "cycle") {
+      const custom = (e.target as HTMLSelectElement).value === "custom";
+      dialog.querySelector<HTMLElement>("[data-custom-sync]")!.hidden = !custom;
+      dialog.querySelector<HTMLInputElement>('[name="minutes"]')!.disabled =
+        !custom;
+    }
+  };
+}
 function login() {
+  stopDataSync();
   state.boot = null;
   resetAssistant();
   document.querySelector("#app")!.innerHTML =
@@ -91,7 +241,7 @@ function login() {
 function renderShell() {
   const a = state.boot!.actor;
   document.querySelector("#app")!.innerHTML =
-    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号 / Agent 详情" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions"><span class="demo-label">${state.boot!.mode === "local" ? "本地模式 · MCP 待接入" : "MCP 模式"}</span><button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
+    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号 / Agent 详情" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
 }
 function renderContent() {
   if (!state.boot) return;
@@ -109,18 +259,6 @@ function renderContent() {
   document.querySelector("#content")!.innerHTML = (
     map[state.page] || pages.overview
   )();
-  if (w().integration) {
-    const notice = document.createElement("details");
-    notice.className = "data-coverage";
-    const summary = document.createElement("summary"),
-      description = document.createElement("p");
-    summary.textContent = w().integration!.complete
-      ? "业务数据已同步 · 查看数据说明"
-      : "仅加载部分业务数据 · 查看统计范围";
-    description.textContent = w().integration!.notices.join(" ");
-    notice.append(summary, description);
-    document.querySelector("#content")!.prepend(notice);
-  }
   const auto = document.querySelector<HTMLInputElement>("#message-auto");
   if (auto) auto.checked = messageAuto;
 }
@@ -132,27 +270,63 @@ async function loadMetrics() {
     );
   state.metrics = await api<Metrics>(`/metrics?start=${start}&end=${end}`);
 }
-async function load() {
+async function load(automatic = false): Promise<SyncOutcome> {
   const seq = ++loadSequence;
+  const previousPhase = syncPhase === "failed" ? "failed" : "synced";
   try {
-    await refresh();
-    await loadMetrics();
-    if (seq !== loadSequence) return;
+    syncPhase = "syncing";
+    syncStatus();
+    const boot = await api<Bootstrap>("/bootstrap");
+    const period = state.period;
+    const start = offsetDate(
+      boot.today,
+      period === "day" ? 0 : period === "month" ? -29 : -6,
+    );
+    const freshMetrics = await api<Metrics>(
+      `/metrics?start=${start}&end=${boot.today}`,
+    );
+    if (
+      seq !== loadSequence ||
+      (automatic && (syncBlocked() || period !== state.period))
+    ) {
+      if (seq === loadSequence) {
+        syncPhase = previousPhase;
+        syncStatus();
+      }
+      return "deferred";
+    }
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    state.boot = boot;
+    state.metrics = freshMetrics;
+    if (!state.date) state.date = boot.today;
+    syncPhase = "synced";
+    syncSchedule.reset();
     state.page = location.hash.slice(1) || "insights";
     if (!navs.some((n) => n[0] === state.page) && state.page !== "agent")
       state.page = "overview";
-    renderShell();
+    if (!automatic) renderShell();
     renderContent();
     renderAssistant();
+    startDataSync();
+    if (automatic) restoreSyncFocus(previousFocus);
+    return "synced";
   } catch (error) {
+    if (seq !== loadSequence) return "deferred";
+    syncPhase = "failed";
+    syncStatus();
     if (!state.boot) {
       if (error instanceof Error && error.message === "请登录后继续") {
         login();
-        return;
+        return "failed";
       }
       document.querySelector("#app")!.innerHTML =
         `<main class="loading-screen"><h1>暂时无法加载工作空间</h1><p>${esc(error instanceof Error ? error.message : "连接失败")}</p>${button("重试", "refresh")}</main>`;
-    } else toast(error instanceof Error ? error.message : "加载失败");
+    } else if (!automatic)
+      toast(error instanceof Error ? error.message : "加载失败");
+    return "failed";
   }
 }
 function navigate(page: string) {
@@ -161,6 +335,7 @@ function navigate(page: string) {
     renderShell();
     renderContent();
     renderAssistant();
+    syncStatus();
   } else location.hash = page;
 }
 function focusPagedList(scope: string) {
@@ -200,11 +375,14 @@ async function handleClick(e: MouseEvent) {
     return;
   }
   if (a === "refresh") {
-    await load();
-    toast("已从后端刷新数据");
+    if ((await load()) === "synced") toast("数据已同步");
     return;
   }
   if (!state.boot) return;
+  if (a === "sync-settings") {
+    editSync();
+    return;
+  }
   if (b.dataset.askTicket) {
     closeModal();
     askAboutTicket(b.dataset.askTicket);
@@ -512,10 +690,14 @@ window.addEventListener("hashchange", () => {
   window.scrollTo(0, 0);
 });
 window.addEventListener("data-updated", () => {
+  ++loadSequence;
   void loadMetrics()
     .then(() => {
       renderContent();
       renderAssistant();
+      syncPhase = "synced";
+      syncSchedule.reset();
+      syncStatus();
     })
     .catch((e) => toast(e.message));
 });

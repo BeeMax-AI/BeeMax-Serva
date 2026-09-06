@@ -555,20 +555,36 @@ aside.panel {
     margin-left: auto;
   }
 }
-.data-coverage {
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--line);
-  padding: 10px 0;
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
   color: var(--muted);
+  font: inherit;
   font-size: 12px;
-}
-.data-coverage summary {
   cursor: pointer;
-  width: fit-content;
+  white-space: nowrap;
 }
-.data-coverage p {
-  margin: 10px 0 0;
-  line-height: 1.8;
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--beemax-mint-500);
+}
+.sync-status[data-state="syncing"] .sync-dot {
+  opacity: 0.45;
+}
+.sync-status[data-state="failed"],
+.sync-status[data-state="partial"] {
+  color: var(--ink);
+}
+.sync-status[data-state="failed"] .sync-dot,
+.sync-status[data-state="partial"] .sync-dot {
+  background: currentColor;
 }
 
 .report-history > .connection-pagination {
