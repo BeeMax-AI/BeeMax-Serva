@@ -1,14 +1,91 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {nextRun,planRange,businessDate} from '../server/src/dates.ts';
-import type {Plan} from '../shared/domain.ts';
-const plan:Plan={id:'test',name:'测试',enabled:true,frequency:'daily',time:'08:30',weekday:1,monthDay:1,yearMonth:1,every:10,unit:'days',anchor:'2026-09-07',range:'previousDay',rangeDays:30,nextRun:''};
-test('08:30 in UTC+8 is persisted as 00:30 UTC',()=>assert.equal(nextRun(plan,new Date('2026-09-06T01:00:00Z')),'2026-09-07T00:30:00.000Z'));
-test('business date crosses midnight at 16:00 UTC',()=>assert.equal(businessDate(new Date('2026-09-06T16:00:00Z')),'2026-09-07'));
-test('monthly day 31 is clamped to February month end',()=>assert.equal(nextRun({...plan,frequency:'monthly',monthDay:31},new Date('2027-02-01T00:00:00Z')),'2027-02-28T00:30:00.000Z'));
-test('yearly report ranges use the previous complete year',()=>assert.deepEqual(planRange({...plan,range:'previousYear'},new Date('2027-01-01T00:30:00Z')),{start:'2026-01-01',end:'2026-12-31'}));
-test('weekly report uses Monday through Sunday, excluding current week',()=>assert.deepEqual(planRange({...plan,range:'previousWeek'},new Date('2026-09-07T00:30:00Z')),{start:'2026-08-31',end:'2026-09-06'}));
-test('half-month report uses previous month second half on first day',()=>assert.deepEqual(planRange({...plan,range:'previousHalf'},new Date('2026-09-01T00:30:00Z')),{start:'2026-08-16',end:'2026-08-31'}));
-test('rolling range excludes run day',()=>assert.deepEqual(planRange({...plan,range:'rolling',rangeDays:7},new Date('2026-09-07T00:30:00Z')),{start:'2026-08-31',end:'2026-09-06'}));
-test('long-past interval anchors calculate next run without bounded loops',()=>assert.equal(nextRun({...plan,frequency:'interval',anchor:'2000-01-01',every:1},new Date('2026-09-06T01:00:00Z')),'2026-09-07T00:30:00.000Z'));
-test('quarterly run occurs in next quarter and previous-quarter range crosses year',()=>{assert.equal(nextRun({...plan,frequency:'quarterly'},new Date('2026-09-06T01:00:00Z')),'2026-10-01T00:30:00.000Z');assert.deepEqual(planRange({...plan,range:'previousQuarter'},new Date('2026-01-01T00:30:00Z')),{start:'2025-10-01',end:'2025-12-31'});});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { nextRun, planRange, businessDate } from "../server/src/dates.ts";
+import type { Plan } from "../shared/domain.ts";
+const plan: Plan = {
+  id: "test",
+  name: "测试",
+  enabled: true,
+  frequency: "daily",
+  time: "08:30",
+  weekday: 1,
+  monthDay: 1,
+  yearMonth: 1,
+  every: 10,
+  unit: "days",
+  anchor: "2026-09-07",
+  range: "previousDay",
+  rangeDays: 30,
+  nextRun: "",
+};
+test("08:30 in UTC+8 is persisted as 00:30 UTC", () =>
+  assert.equal(
+    nextRun(plan, new Date("2026-09-06T01:00:00Z")),
+    "2026-09-07T00:30:00.000Z",
+  ));
+test("business date crosses midnight at 16:00 UTC", () =>
+  assert.equal(businessDate(new Date("2026-09-06T16:00:00Z")), "2026-09-07"));
+test("monthly day 31 is clamped to February month end", () =>
+  assert.equal(
+    nextRun(
+      { ...plan, frequency: "monthly", monthDay: 31 },
+      new Date("2027-02-01T00:00:00Z"),
+    ),
+    "2027-02-28T00:30:00.000Z",
+  ));
+test("yearly report ranges use the previous complete year", () =>
+  assert.deepEqual(
+    planRange(
+      { ...plan, range: "previousYear" },
+      new Date("2027-01-01T00:30:00Z"),
+    ),
+    { start: "2026-01-01", end: "2026-12-31" },
+  ));
+test("weekly report uses Monday through Sunday, excluding current week", () =>
+  assert.deepEqual(
+    planRange(
+      { ...plan, range: "previousWeek" },
+      new Date("2026-09-07T00:30:00Z"),
+    ),
+    { start: "2026-08-31", end: "2026-09-06" },
+  ));
+test("half-month report uses previous month second half on first day", () =>
+  assert.deepEqual(
+    planRange(
+      { ...plan, range: "previousHalf" },
+      new Date("2026-09-01T00:30:00Z"),
+    ),
+    { start: "2026-08-16", end: "2026-08-31" },
+  ));
+test("rolling range excludes run day", () =>
+  assert.deepEqual(
+    planRange(
+      { ...plan, range: "rolling", rangeDays: 7 },
+      new Date("2026-09-07T00:30:00Z"),
+    ),
+    { start: "2026-08-31", end: "2026-09-06" },
+  ));
+test("long-past interval anchors calculate next run without bounded loops", () =>
+  assert.equal(
+    nextRun(
+      { ...plan, frequency: "interval", anchor: "2000-01-01", every: 1 },
+      new Date("2026-09-06T01:00:00Z"),
+    ),
+    "2026-09-07T00:30:00.000Z",
+  ));
+test("quarterly run occurs in next quarter and previous-quarter range crosses year", () => {
+  assert.equal(
+    nextRun(
+      { ...plan, frequency: "quarterly" },
+      new Date("2026-09-06T01:00:00Z"),
+    ),
+    "2026-10-01T00:30:00.000Z",
+  );
+  assert.deepEqual(
+    planRange(
+      { ...plan, range: "previousQuarter" },
+      new Date("2026-01-01T00:30:00Z"),
+    ),
+    { start: "2025-10-01", end: "2025-12-31" },
+  );
+});

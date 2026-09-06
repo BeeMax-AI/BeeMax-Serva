@@ -1,21 +1,180 @@
-import { DatabaseSync } from 'node:sqlite';
-import { randomBytes,scryptSync,timingSafeEqual,createCipheriv,createDecipheriv } from 'node:crypto';
-import { mkdirSync,existsSync,readFileSync,writeFileSync,chmodSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Actor,Workspace } from '../../shared/domain.ts';
-import { seed } from './seed.ts';
+import { DatabaseSync } from "node:sqlite";
+import {
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+  createCipheriv,
+  createDecipheriv,
+} from "node:crypto";
+import {
+  mkdirSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  chmodSync,
+} from "node:fs";
+import { join } from "node:path";
+import type { Actor, Workspace } from "../../shared/domain.ts";
+import { seed } from "./seed.ts";
 export class Store {
- db:DatabaseSync; key:Buffer;
- constructor(public directory:string){mkdirSync(directory,{recursive:true,mode:0o700});const keyFile=join(directory,'vault.key');if(!existsSync(keyFile))writeFileSync(keyFile,randomBytes(32),{mode:0o600});this.key=readFileSync(keyFile);this.db=new DatabaseSync(join(directory,'local.sqlite'));chmodSync(join(directory,'local.sqlite'),0o600);this.db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspaces(tenant TEXT PRIMARY KEY,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,tenant TEXT NOT NULL,name TEXT NOT NULL,role TEXT NOT NULL,salt TEXT NOT NULL,hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS requests(tenant TEXT NOT NULL,actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(tenant,actor,id)); CREATE TABLE IF NOT EXISTS secrets(tenant TEXT PRIMARY KEY,value TEXT NOT NULL);`);}
- initialize(){if(!this.db.prepare('SELECT id FROM users LIMIT 1').get()){const access:Record<string,string>={};for(const [id,name,role,tenant] of [['admin','运营管理员','admin','demo'],['owner','平台管理员','owner','demo'],['viewer','只读用户','viewer','demo'],['other','其他客户管理员','admin','other']]){const password=randomBytes(15).toString('base64url'),salt=randomBytes(16).toString('hex');this.db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,tenant,name,role,salt,scryptSync(password,salt,64).toString('hex'));access[id]=password;}writeFileSync(join(this.directory,'access.json'),JSON.stringify(access,null,2),{mode:0o600});}for(const id of ['demo','other'])if(!this.db.prepare('SELECT tenant FROM workspaces WHERE tenant=?').get(id))this.save(seed(id));}
- read(tenant:string):Workspace{const row=this.db.prepare('SELECT data FROM workspaces WHERE tenant=?').get(tenant) as {data:string}|undefined;if(!row)throw new Error('租户不存在');return JSON.parse(row.data);}
- save(w:Workspace){this.db.prepare('INSERT INTO workspaces VALUES(?,?) ON CONFLICT(tenant) DO UPDATE SET data=excluded.data').run(w.tenant.id,JSON.stringify(w));}
- tenants():string[]{return (this.db.prepare('SELECT tenant FROM workspaces').all() as {tenant:string}[]).map(r=>r.tenant);}
- authenticate(id:string,password:string):Actor|null{const u=this.db.prepare('SELECT * FROM users WHERE id=?').get(id) as Record<string,string>|undefined;if(!u){scryptSync(password,'constant-invalid-user',64);return null;}if(!timingSafeEqual(scryptSync(password,u.salt,64),Buffer.from(u.hash,'hex')))return null;return{id:u.id,name:u.name,role:u.role as Actor['role'],tenantId:u.tenant};}
- session(token:string):Actor|null{const u=this.db.prepare('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>?').get(token,Date.now()) as Record<string,string>|undefined;return u?{id:u.id,name:u.name,role:u.role as Actor['role'],tenantId:u.tenant}:null;}
- createSession(actor:Actor){const token=randomBytes(32).toString('hex');this.db.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(token,actor.id,Date.now()+12*3600000);return token;}
- revokeSession(token:string){this.db.prepare('DELETE FROM sessions WHERE token=?').run(token);}
- setSecret(tenant:string,value:object){const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',this.key,iv),body=Buffer.concat([cipher.update(JSON.stringify(value)),cipher.final()]);this.db.prepare('INSERT INTO secrets VALUES(?,?) ON CONFLICT(tenant) DO UPDATE SET value=excluded.value').run(tenant,[iv,cipher.getAuthTag(),body].map(b=>b.toString('base64')).join('.'));}
- getSecret(tenant:string):Record<string,string>{const row=this.db.prepare('SELECT value FROM secrets WHERE tenant=?').get(tenant) as {value:string}|undefined;if(!row)return{};const [iv,tag,body]=row.value.split('.').map(v=>Buffer.from(v,'base64')),d=createDecipheriv('aes-256-gcm',this.key,iv);d.setAuthTag(tag);return JSON.parse(Buffer.concat([d.update(body),d.final()]).toString());}
- close(){this.db.close();}
+  db: DatabaseSync;
+  key: Buffer;
+  constructor(public directory: string) {
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const keyFile = join(directory, "vault.key");
+    if (!existsSync(keyFile))
+      writeFileSync(keyFile, randomBytes(32), { mode: 0o600 });
+    this.key = readFileSync(keyFile);
+    this.db = new DatabaseSync(join(directory, "local.sqlite"));
+    chmodSync(join(directory, "local.sqlite"), 0o600);
+    this.db.exec(
+      `PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspaces(tenant TEXT PRIMARY KEY,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,tenant TEXT NOT NULL,name TEXT NOT NULL,role TEXT NOT NULL,salt TEXT NOT NULL,hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS requests(tenant TEXT NOT NULL,actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(tenant,actor,id)); CREATE TABLE IF NOT EXISTS secrets(tenant TEXT PRIMARY KEY,value TEXT NOT NULL);`,
+    );
+  }
+  initialize() {
+    if (!this.db.prepare("SELECT id FROM users LIMIT 1").get()) {
+      const access: Record<string, string> = {};
+      for (const [id, name, role, tenant] of [
+        ["admin", "运营管理员", "admin", "demo"],
+        ["owner", "平台管理员", "owner", "demo"],
+        ["viewer", "只读用户", "viewer", "demo"],
+        ["other", "其他客户管理员", "admin", "other"],
+      ]) {
+        const password = randomBytes(15).toString("base64url"),
+          salt = randomBytes(16).toString("hex");
+        this.db
+          .prepare("INSERT INTO users VALUES(?,?,?,?,?,?)")
+          .run(
+            id,
+            tenant,
+            name,
+            role,
+            salt,
+            scryptSync(password, salt, 64).toString("hex"),
+          );
+        access[id] = password;
+      }
+      writeFileSync(
+        join(this.directory, "access.json"),
+        JSON.stringify(access, null, 2),
+        { mode: 0o600 },
+      );
+    }
+    for (const id of ["demo", "other"])
+      if (
+        !this.db.prepare("SELECT tenant FROM workspaces WHERE tenant=?").get(id)
+      )
+        this.save(seed(id));
+  }
+  read(tenant: string): Workspace {
+    const row = this.db
+      .prepare("SELECT data FROM workspaces WHERE tenant=?")
+      .get(tenant) as { data: string } | undefined;
+    if (!row) throw new Error("租户不存在");
+    const data = JSON.parse(row.data) as Workspace;
+    data.adviceState ||= {};
+    for (const r of data.reports)
+      for (const a of r.advice)
+        if (!data.adviceState[a.id])
+          data.adviceState[a.id] = {
+            status: a.status,
+            ownerId: a.ownerId,
+            reviewAt: a.reviewAt,
+          };
+    return data;
+  }
+  save(w: Workspace) {
+    this.db
+      .prepare(
+        "INSERT INTO workspaces VALUES(?,?) ON CONFLICT(tenant) DO UPDATE SET data=excluded.data",
+      )
+      .run(w.tenant.id, JSON.stringify(w));
+  }
+  tenants(): string[] {
+    return (
+      this.db.prepare("SELECT tenant FROM workspaces").all() as {
+        tenant: string;
+      }[]
+    ).map((r) => r.tenant);
+  }
+  authenticate(id: string, password: string): Actor | null {
+    const u = this.db.prepare("SELECT * FROM users WHERE id=?").get(id) as
+      Record<string, string> | undefined;
+    if (!u) {
+      scryptSync(password, "constant-invalid-user", 64);
+      return null;
+    }
+    if (
+      !timingSafeEqual(
+        scryptSync(password, u.salt, 64),
+        Buffer.from(u.hash, "hex"),
+      )
+    )
+      return null;
+    return {
+      id: u.id,
+      name: u.name,
+      role: u.role as Actor["role"],
+      tenantId: u.tenant,
+    };
+  }
+  session(token: string): Actor | null {
+    const u = this.db
+      .prepare(
+        "SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>?",
+      )
+      .get(token, Date.now()) as Record<string, string> | undefined;
+    return u
+      ? {
+          id: u.id,
+          name: u.name,
+          role: u.role as Actor["role"],
+          tenantId: u.tenant,
+        }
+      : null;
+  }
+  createSession(actor: Actor) {
+    const token = randomBytes(32).toString("hex");
+    this.db.prepare("DELETE FROM sessions WHERE expires<?").run(Date.now());
+    this.db
+      .prepare("INSERT INTO sessions VALUES(?,?,?)")
+      .run(token, actor.id, Date.now() + 12 * 3600000);
+    return token;
+  }
+  revokeSession(token: string) {
+    this.db.prepare("DELETE FROM sessions WHERE token=?").run(token);
+  }
+  setSecret(tenant: string, value: object) {
+    const iv = randomBytes(12),
+      cipher = createCipheriv("aes-256-gcm", this.key, iv),
+      body = Buffer.concat([
+        cipher.update(JSON.stringify(value)),
+        cipher.final(),
+      ]);
+    this.db
+      .prepare(
+        "INSERT INTO secrets VALUES(?,?) ON CONFLICT(tenant) DO UPDATE SET value=excluded.value",
+      )
+      .run(
+        tenant,
+        [iv, cipher.getAuthTag(), body]
+          .map((b) => b.toString("base64"))
+          .join("."),
+      );
+  }
+  getSecret(tenant: string): Record<string, string> {
+    const row = this.db
+      .prepare("SELECT value FROM secrets WHERE tenant=?")
+      .get(tenant) as { value: string } | undefined;
+    if (!row) return {};
+    const [iv, tag, body] = row.value
+        .split(".")
+        .map((v) => Buffer.from(v, "base64")),
+      d = createDecipheriv("aes-256-gcm", this.key, iv);
+    d.setAuthTag(tag);
+    return JSON.parse(Buffer.concat([d.update(body), d.final()]).toString());
+  }
+  close() {
+    this.db.close();
+  }
 }

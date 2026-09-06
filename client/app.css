@@ -1,4 +1,405 @@
 /* Application states and forms extend the approved BeeMax design. */
-[hidden]{display:none!important}.loading-screen{padding:80px 30px;text-align:center}.login-screen{min-height:100dvh;display:grid;place-items:center;background:var(--soft);padding:30px;max-width:none}.login-card{width:min(420px,100%);border:1px solid var(--line);border-radius:16px;background:var(--white);padding:36px}.login-card>img{width:48px;margin-bottom:18px}.login-card h1{font-size:30px;margin:6px 0}.login-card p,.login-card small{color:var(--muted)}.login-card small{display:block;font-size:11px;line-height:1.8;margin-top:24px}.login-card label{display:block;margin:18px 0;font-size:13px}.login-card input{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit}.login-card button{width:100%;margin-top:8px}.form-error{color:var(--navy);font-size:12px;line-height:1.8;white-space:pre-wrap}.form-error:empty{display:none}.workspace>div{min-width:0}.workspace strong{font-weight:600}.sidebar .profile{padding-left:0;padding-right:0;gap:8px}.profile>div{min-width:0}.profile small{overflow-wrap:anywhere}.profile .icon-button{margin-left:auto;flex-shrink:0}.config-title select,.filters select,.chat-history-select select{font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--white);padding:9px;max-width:100%}.report-workspace{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:24px;margin-top:24px}.report-content{padding:0 24px 24px}.report-summary{font-size:14px;line-height:1.9;white-space:pre-wrap}.report-content .connection-kpis{margin:22px 0}.report-content .connection-kpis strong{font-size:26px}.report-history{align-self:start}.report-history>button{display:block;width:100%;text-align:left;background:var(--white);border:0;border-top:1px solid var(--line);padding:18px 20px;color:var(--navy)}.report-history>button.active{background:var(--blue-soft)}.report-history small{display:block;color:var(--muted);margin-top:6px;font-size:11px}.live-schedules{display:grid;grid-template-columns:repeat(3,1fr);padding:0 24px 20px;gap:16px}.schedule-preview{border:0;border-left:1px solid var(--line);text-align:left;background:var(--white);padding:10px 16px;color:var(--navy)}.schedule-preview strong{margin-right:10px;font-size:13px}.schedule-preview small{display:block;color:var(--muted);font-size:11px;margin-top:8px}.plans-summary{margin-top:24px}.live-advice{padding:18px 0;border-top:1px solid var(--line)}.live-advice p{font-size:12px;line-height:1.8}.live-advice>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.live-advice h3{font-size:16px}.inline-check{display:flex!important;align-items:center;gap:8px}.inline-check input{width:auto!important;margin:0!important}.wide-dialog{width:680px}.ticket-dialog{width:600px}.message-text{white-space:pre-wrap;overflow-wrap:anywhere}.chat-history-select{padding:10px 16px;border-bottom:1px solid var(--line);font-size:11px}.chat-history-select label{display:flex;align-items:center;gap:10px}.chat-history-select select{flex:1;min-width:0;font-size:11px;padding:5px}.chat-messages .chat-reply>div>strong,.chat-messages .chat-user>div>strong{font-size:12px}.chat-messages small{font-size:10px;color:var(--muted)}.assistant-widget .chat-messages{flex:1;min-height:80px;overflow:auto}.assistant-widget .message-text{font-size:12px;line-height:1.85}.assistant-widget .chat-reply .button{margin:4px 4px 4px 0;padding:6px 9px;font-size:11px}.assistant-widget .chat-history-select{flex-shrink:0}.all-tickets strong{font-weight:500;overflow-wrap:anywhere}.table-box table{min-width:660px}.message-table{min-width:800px}.table-box td{overflow-wrap:anywhere}.panel .filters{flex-wrap:wrap}.plan-editor label{margin:10px 0}.plan-editor>div label{margin-top:10px}.note-band svg{vertical-align:middle;width:17px}.sidebar #navigation{flex:1;min-height:0;overflow:auto}.sidebar .nav-label{flex-shrink:0}.connection-kpis{overflow-wrap:anywhere}dialog{max-height:calc(100dvh - 40px);overflow:auto}dialog .modal-summary{overflow-wrap:anywhere}.config-row p{overflow-wrap:anywhere}.drawer-actions{flex-wrap:wrap}.sidebar-bottom .profile small{max-width:110px}.status svg{height:12px;width:12px}.plan-manager-row small{display:block;color:var(--muted);font-size:11px;margin-top:5px}select,input,textarea{accent-color:var(--action)}.chart-meta{gap:15px}.chat-messages .chat-user{justify-content:flex-end}.chat-user>div{white-space:normal}.credential-form>label{max-width:760px}.credential-form .inline-check{font-size:12px}
-@media(max-width:1100px){.report-workspace{grid-template-columns:minmax(0,1fr)}.report-history{display:grid;grid-template-columns:repeat(3,1fr)}.report-history>.panel-heading{grid-column:1/-1}.lower-grid{grid-template-columns:1fr}.live-schedules{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:719px){.report-history{display:block}.report-content{padding:0 16px 20px}.live-schedules{padding:0 14px 14px;gap:10px}.schedule-preview{padding:10px;font-size:12px}.schedule-preview .status{margin-top:7px}.report-content .connection-kpis strong{font-size:23px}.login-card{padding:28px 22px}.heading-actions{flex-wrap:wrap}.plan-editor{grid-template-columns:1fr}.report-content .connection-kpis>div{padding-left:0;padding-right:10px}.table-box{overflow-x:auto}.sidebar .profile small{max-width:none}}
+[hidden] {
+  display: none !important;
+}
+.loading-screen {
+  padding: 80px 30px;
+  text-align: center;
+}
+.login-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  padding: 30px;
+  max-width: none;
+}
+.login-card {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--white);
+  padding: 36px;
+}
+.login-card > img {
+  width: 48px;
+  margin-bottom: 18px;
+}
+.login-card h1 {
+  font-size: 30px;
+  margin: 6px 0;
+}
+.login-card p,
+.login-card small {
+  color: var(--muted);
+}
+.login-card small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 24px;
+}
+.login-card label {
+  display: block;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.login-card input {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+.login-card button {
+  width: 100%;
+  margin-top: 8px;
+}
+.form-error {
+  color: var(--navy);
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.form-error:empty {
+  display: none;
+}
+.workspace > div {
+  min-width: 0;
+}
+.workspace strong {
+  font-weight: 600;
+}
+.sidebar .profile {
+  padding-left: 0;
+  padding-right: 0;
+  gap: 8px;
+}
+.profile > div {
+  min-width: 0;
+}
+.profile small {
+  overflow-wrap: anywhere;
+}
+.profile .icon-button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.config-title select,
+.filters select,
+.chat-history-select select {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 9px;
+  max-width: 100%;
+}
+.report-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 24px;
+  margin-top: 24px;
+}
+.report-content {
+  padding: 0 24px 24px;
+}
+.report-summary {
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+.report-content .connection-kpis {
+  margin: 22px 0;
+}
+.report-content .connection-kpis strong {
+  font-size: 26px;
+}
+.report-history {
+  align-self: start;
+}
+.report-history > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--white);
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 18px 20px;
+  color: var(--navy);
+}
+.report-history > button.active {
+  background: var(--blue-soft);
+}
+.report-history small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 11px;
+}
+.live-schedules {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 0 24px 20px;
+  gap: 16px;
+}
+.schedule-preview {
+  border: 0;
+  border-left: 1px solid var(--line);
+  text-align: left;
+  background: var(--white);
+  padding: 10px 16px;
+  color: var(--navy);
+}
+.schedule-preview strong {
+  margin-right: 10px;
+  font-size: 13px;
+}
+.schedule-preview small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+}
+.plans-summary {
+  margin-top: 24px;
+}
+.live-advice {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.live-advice p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.live-advice > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.live-advice h3 {
+  font-size: 16px;
+}
+.inline-check {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+.inline-check input {
+  width: auto !important;
+  margin: 0 !important;
+}
+.wide-dialog {
+  width: 680px;
+}
+.ticket-dialog {
+  width: 600px;
+}
+.message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-history-select {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.chat-history-select label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-history-select select {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 5px;
+}
+.chat-messages .chat-reply > div > strong,
+.chat-messages .chat-user > div > strong {
+  font-size: 12px;
+}
+.chat-messages small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.assistant-widget .chat-messages {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+}
+.assistant-widget .message-text {
+  font-size: 12px;
+  line-height: 1.85;
+}
+.assistant-widget .chat-reply .button {
+  margin: 4px 4px 4px 0;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+.assistant-widget .chat-history-select {
+  flex-shrink: 0;
+}
+.all-tickets strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.table-box table {
+  min-width: 660px;
+}
+.message-table {
+  min-width: 800px;
+}
+.table-box td {
+  overflow-wrap: anywhere;
+}
+.panel .filters {
+  flex-wrap: wrap;
+}
+.plan-editor label {
+  margin: 10px 0;
+}
+.plan-editor > div label {
+  margin-top: 10px;
+}
+.note-band svg {
+  vertical-align: middle;
+  width: 17px;
+}
+.sidebar #navigation {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.sidebar .nav-label {
+  flex-shrink: 0;
+}
+.connection-kpis {
+  overflow-wrap: anywhere;
+}
+dialog {
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+dialog .modal-summary {
+  overflow-wrap: anywhere;
+}
+.config-row p {
+  overflow-wrap: anywhere;
+}
+.drawer-actions {
+  flex-wrap: wrap;
+}
+.sidebar-bottom .profile small {
+  max-width: 110px;
+}
+.status svg {
+  height: 12px;
+  width: 12px;
+}
+.plan-manager-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 5px;
+}
+select,
+input,
+textarea {
+  accent-color: var(--action);
+}
+.chart-meta {
+  gap: 15px;
+}
+.chat-messages .chat-user {
+  justify-content: flex-end;
+}
+.chat-user > div {
+  white-space: normal;
+}
+.credential-form > label {
+  max-width: 760px;
+}
+.credential-form .inline-check {
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .report-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-history {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .report-history > .panel-heading {
+    grid-column: 1/-1;
+  }
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+  .live-schedules {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 719px) {
+  .report-history {
+    display: block;
+  }
+  .report-content {
+    padding: 0 16px 20px;
+  }
+  .live-schedules {
+    padding: 0 14px 14px;
+    gap: 10px;
+  }
+  .schedule-preview {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .schedule-preview .status {
+    margin-top: 7px;
+  }
+  .report-content .connection-kpis strong {
+    font-size: 23px;
+  }
+  .login-card {
+    padding: 28px 22px;
+  }
+  .heading-actions {
+    flex-wrap: wrap;
+  }
+  .plan-editor {
+    grid-template-columns: 1fr;
+  }
+  .report-content .connection-kpis > div {
+    padding-left: 0;
+    padding-right: 10px;
+  }
+  .table-box {
+    overflow-x: auto;
+  }
+  .sidebar .profile small {
+    max-width: none;
+  }
+}
+
+.lower-grid table {
+  min-width: 0;
+  table-layout: fixed;
+}
+.lower-grid th:first-child {
+  width: 38%;
+}
+.lower-grid td,
+.lower-grid th {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+@media (max-width: 719px) {
+  .lower-grid table {
+    min-width: 460px;
+  }
+}
