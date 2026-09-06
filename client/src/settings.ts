@@ -64,33 +64,44 @@ const auditNames: Record<string, string> = {
 };
 function content() {
   const data = w();
+  if (data.integration && ["access", "connection"].includes(state.tab))
+    return `<div class="config-title"><div><h2>${state.tab === "connection" ? "MCP 数据连接" : "主动推送权限"}</h2><p>${state.tab === "connection" ? "已通过服务端连接 MCP；凭据不返回浏览器。QiWe 凭据管理接口尚未提供。" : "当前 MCP 未提供实例白名单接口，路由群不等同于主动推送授权群。"}</p></div></div>`;
   switch (state.tab) {
     case "routing":
       return (
-        `<div class="config-title"><div><h2>路由规则</h2><p>按问题类型与关键词，找到合适的处理小组。</p></div>${button("新增规则", "add-route", true, !canWrite())}</div>` +
+        `<div class="config-title"><div><h2>路由规则</h2><p>按问题类型与关键词，找到合适的处理小组。</p></div>${button("新增规则", "add-route", true, !canWrite("route.save"))}</div>` +
+        (data.integration
+          ? `<div class="note-band">路由来自远端生效配置；当前接口仅提供读取。</div>`
+          : "") +
         table(
           ["问题类型", "关键词", "处理小组", "来源", "操作"],
           data.routes.map(
             (r) =>
-              `<tr><td>${esc(r.type)}</td><td>${esc(r.keywords)}</td><td>${esc(groupName(r.groupId))}</td><td>${tag(r.source)}</td><td><button class="text-link" data-route="${r.id}" ${canWrite() ? "" : "disabled"}>编辑</button> <button class="text-link" data-delete-route="${r.id}" ${canWrite() ? "" : "disabled"}>删除</button></td></tr>`,
+              `<tr><td>${esc(r.type)}</td><td>${esc(r.keywords)}</td><td>${esc(groupName(r.groupId))}</td><td>${tag(r.source)}</td><td><button class="text-link" data-route="${esc(r.id)}" ${canWrite("route.save") ? "" : "disabled"}>编辑</button> <button class="text-link" data-delete-route="${esc(r.id)}" ${canWrite("route.delete") ? "" : "disabled"}>删除</button></td></tr>`,
           ),
         )
       );
     case "roster":
       return (
-        `<div class="config-title"><div><h2>人员与默认排班</h2><p>按小组、档位和在岗状态配置接单人员。</p></div>${button("新增人员", "add-person", true, !canWrite())}</div>` +
+        `<div class="config-title"><div><h2>人员与默认排班</h2><p>按小组、档位和在岗状态配置接单人员。</p></div>${button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
+        (data.integration
+          ? `<div class="note-band">${esc(data.integration.rosterNote)} 当前接口仅支持读取。</div>`
+          : "") +
         table(
           ["人员", "小组", "档位", "在岗", "操作"],
           data.people.map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.active ? "当班" : "未在岗", p.active)}</td><td><button class="text-link" data-person="${p.id}" ${canWrite() ? "" : "disabled"}>编辑</button></td></tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td><td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td></tr>`,
           ),
         )
       );
     case "parameters":
-      return `<div class="config-title"><div><h2>派单与提醒</h2><p>分钟为单位，保存前核对变更。</p></div>${button("编辑参数", "parameters", false, !canWrite())}</div>${[
+      return `<div class="config-title"><div><h2>派单与提醒</h2><p>分钟为单位，保存前核对变更。${data.integration ? "每次只修改一项；接单后完成提醒须为 60 分钟的倍数。" : ""}</p></div>${button("编辑参数", "parameters", false, !canWrite("parameters.save"))}</div>${[
         ["升级间隔", data.parameters.escalationMinutes],
-        ["接单提醒", data.parameters.acceptReminderMinutes],
+        [
+          data.integration ? "接单后完成提醒" : "接单提醒",
+          data.parameters.acceptReminderMinutes,
+        ],
         ["挂起提前提醒", data.parameters.holdReminderMinutes],
       ]
         .map(
@@ -107,7 +118,7 @@ function content() {
       ]
         .map(([key, name]) => {
           const on = data.learning[key as keyof typeof data.learning];
-          return `<div class="config-row"><div><h3>${name}</h3>${tag(on ? "已开启" : "已关闭")}</div><button class="switch ${on ? "" : "off"}" role="switch" aria-checked="${on}" aria-label="${name}" data-learning="${key}" ${canWrite() ? "" : "disabled"}></button></div>`;
+          return `<div class="config-row"><div><h3>${name}</h3>${tag(on ? "已开启" : "已关闭")}</div><button class="switch ${on ? "" : "off"}" role="switch" aria-checked="${on}" aria-label="${name}" data-learning="${key}" ${canWrite("learning.save") ? "" : "disabled"}></button></div>`;
         })
         .join("")}`;
     case "connection":
@@ -206,7 +217,7 @@ export function editParameters() {
       'required min="1" max="1440"',
     ) +
       field(
-        "接单提醒（分钟）",
+        w().integration ? "接单后完成提醒（分钟，整小时）" : "接单提醒（分钟）",
         "acceptReminderMinutes",
         String(p.acceptReminderMinutes),
         "number",
@@ -227,7 +238,7 @@ export function editParameters() {
         );
         confirmCommand(
           "确认提醒参数",
-          `升级：${d.escalationMinutes} 分钟；接单提醒：${d.acceptReminderMinutes} 分钟；挂起提醒：${d.holdReminderMinutes} 分钟。`,
+          `升级：${d.escalationMinutes} 分钟；${w().integration ? "接单后完成提醒" : "接单提醒"}：${d.acceptReminderMinutes} 分钟；挂起提醒：${d.holdReminderMinutes} 分钟。`,
           "parameters.save",
           d,
         );
@@ -374,7 +385,7 @@ export function showPlans() {
     `<div class="plan-manager">${w()
       .plans.map(
         (p) =>
-          `<div class="plan-manager-row"><div><strong>${esc(p.name)}</strong><small>${p.enabled ? "已开启" : "已停用"} · 下次 ${fmt(p.nextRun)}</small></div><button class="button" type="button" data-plan="${p.id}">编辑</button><button class="text-link" type="button" data-delete-plan="${p.id}">删除</button></div>`,
+          `<div class="plan-manager-row"><div><strong>${esc(p.name)}</strong><small>${p.enabled ? "已开启" : "已停用"} · 下次 ${fmt(p.nextRun)}</small></div><button class="button" type="button" data-plan="${esc(p.id)}">编辑</button><button class="text-link" type="button" data-delete-plan="${esc(p.id)}">删除</button></div>`,
       )
       .join(
         "",
@@ -433,7 +444,7 @@ export async function ticketDetail(id: string) {
     ]
       .map(
         ([action, name]) =>
-          `<button type="button" class="button ${action === "urge" ? "primary" : ""}" data-ticket-action="${action}" data-id="${esc(t.id)}" ${t.status === "CLOSED" || !canWrite() ? "disabled" : ""}>${name}</button>`,
+          `<button type="button" class="button ${action === "urge" ? "primary" : ""}" data-ticket-action="${action}" data-id="${esc(t.id)}" ${t.status === "CLOSED" || !canWrite("ticket." + action) ? "disabled" : ""}>${name}</button>`,
       )
       .join("")}</div>`,
   );
@@ -460,13 +471,15 @@ export function ticketAction(id: string, action: string) {
               "datetime-local",
               "required",
             )
-        : `<label>目标小组<select name="groupId">${options(w().groups, w().groups[0]?.id)}</select></label><label>处理人<select name="assigneeId">${options(
-            w().people.filter(
-              (p) => p.groupId === w().groups[0]?.id && p.active,
-            ),
-            "",
-            "待接单",
-          )}</select></label>`,
+        : w().integration
+          ? `<label>目标小组<select name="groupId">${options(w().groups, w().groups[0]?.id)}</select></label><p>由远端按小组排班选择处理人，转派可能发送企微通知。</p>`
+          : `<label>目标小组<select name="groupId">${options(w().groups, w().groups[0]?.id)}</select></label><label>处理人<select name="assigneeId">${options(
+              w().people.filter(
+                (p) => p.groupId === w().groups[0]?.id && p.active,
+              ),
+              "",
+              "待接单",
+            )}</select></label>`,
       {
         label: "预览操作",
         run: (form) => {
@@ -489,7 +502,7 @@ export function ticketAction(id: string, action: string) {
         },
       },
     );
-    if (action === "reassign")
+    if (action === "reassign" && !w().integration)
       el.querySelector<HTMLSelectElement>('[name="groupId"]')!.onchange = (
         e,
       ) => {

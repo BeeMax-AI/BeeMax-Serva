@@ -34,7 +34,11 @@ export const state: {
   date: "",
 };
 export const w = () => state.boot!.workspace;
-export const canWrite = () => state.boot?.actor.role !== "viewer";
+export const canWrite = (capability?: string) =>
+  state.boot?.actor.role !== "viewer" &&
+  (!capability ||
+    !state.boot?.workspace.integration ||
+    state.boot.workspace.integration.commands.includes(capability));
 export const isOwner = () => state.boot?.actor.role === "owner";
 export const esc = (v: unknown) =>
   String(v ?? "").replace(
@@ -250,7 +254,7 @@ export function confirmCommand(
     revision = current?.open ? Number(current.dataset.revision) : w().revision;
   modal(
     name,
-    `<p>${esc(description)}</p><div class="note-band">${state.boot!.mode === "local" ? "将保存到本地开发数据，不发送外部通知。" : "操作将通过 MCP 执行。"}操作人：${esc(state.boot!.actor.name)}</div>`,
+    `<p>${esc(description)}</p><div class="note-band">${state.boot!.mode === "local" ? "将保存到本地开发数据，不发送外部通知。" : ["plan.save", "plan.delete", "advice.update"].includes(type) ? "将保存到工作台；分析数据来自 MCP。" : "操作将通过 MCP 执行，可能发送企微通知。"}操作人：${esc(state.boot!.actor.name)}</div>`,
     {
       label: "确认保存",
       run: async () => {

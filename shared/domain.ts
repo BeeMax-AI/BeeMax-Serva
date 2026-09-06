@@ -15,6 +15,7 @@ export interface Person {
   groupId: string;
   tier: number;
   active: boolean;
+  scheduleLabel?: string;
 }
 export const statuses = {
   DISPATCHED: "待接单",
@@ -162,6 +163,15 @@ export interface Conversation {
   }[];
 }
 export interface Workspace {
+  integration?: {
+    notices: string[];
+    commands: string[];
+    loaded: number;
+    total: number;
+    complete: boolean;
+    checkedAt: string;
+    rosterNote: string;
+  };
   revision: number;
   tenant: {
     id: string;

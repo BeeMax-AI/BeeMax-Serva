@@ -91,7 +91,7 @@ export function validatePlan(data: Record<string, unknown>, old?: Plan): Plan {
   return p;
 }
 export class LocalProvider implements DataProvider {
-  mode = "local" as const;
+  mode: "local" | "mcp" = "local";
   constructor(public store: Store) {}
   async read(actor: Actor) {
     return this.store.read(actor.tenantId);
@@ -188,7 +188,7 @@ export class LocalProvider implements DataProvider {
                       ? `建议状态 → ${d.status}`
                       : "操作成功";
   }
-  private apply(w: Workspace, actor: Actor, c: Command) {
+  protected apply(w: Workspace, actor: Actor, c: Command) {
     const d = c.data,
       now = new Date().toISOString(),
       group = (id: unknown) => {
@@ -441,13 +441,25 @@ export class LocalProvider implements DataProvider {
         throw new AppError(400, "UNKNOWN_COMMAND", "不支持的操作");
     }
   }
+  readDashboard(actor: Actor) {
+    return this.store.read(actor.tenantId);
+  }
+  saveDashboard(_actor: Actor, w: Workspace) {
+    this.store.save(w);
+  }
+  analysisTenantIds() {
+    return this.store.tenants().filter((id) => !id.startsWith("mcp:"));
+  }
+  async getTicket(actor: Actor, id: string) {
+    return (await this.read(actor)).tickets.find((t) => t.id === id);
+  }
   saveConversation(actor: Actor, conversation: Conversation) {
-    const w = this.store.read(actor.tenantId),
+    const w = this.readDashboard(actor),
       all = w.conversations[actor.id] || [],
       i = all.findIndex((c) => c.id === conversation.id);
     if (i < 0) all.unshift(conversation);
     else all[i] = conversation;
     w.conversations[actor.id] = all.slice(0, 30);
-    this.store.save(w);
+    this.saveDashboard(actor, w);
   }
 }

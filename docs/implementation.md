@@ -38,4 +38,4 @@
 - Spec：修复跨期建议、助手只发送页面名称而没有业务上下文、查询中继续输入被回复清空三项问题；复查修复报告切换时助手标题不同步。
 - 额外核对：确认表单保留打开时的版本，避免后台刷新让旧表单绕过冲突检查；自定义计划确认展示间隔、首次日期、时区与范围。
 
-截图见 `docs/screenshots/overview.png`、`insights.png`、`mobile-overview.png`。真实 MCP、真实 QiWe 通道和外部模型凭据尚未交付，因此不宣称完成这些外部集成验收。
+截图见 `docs/screenshots/overview.png`、`insights.png`、`mobile-overview.png`。该截图来自初始本地版本。2026-09-06 已接入 MCP 并完成真实只读验收；QiWe 独立通道和外部模型仍未配置，具体边界见 mcp-integration.md。

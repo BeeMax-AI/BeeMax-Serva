@@ -6,6 +6,8 @@ import {
 import { readFile } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import type { Actor, Command, Bootstrap } from "../../shared/domain.ts";
+import { McpProvider } from "./mcp-provider.ts";
+import type { McpConfig } from "./mcp-client.ts";
 import { Store } from "./store.ts";
 import {
   LocalProvider,
@@ -52,9 +54,14 @@ export function createApp(
   store: Store,
   root = resolve("."),
   mode = process.env.DATA_PROVIDER || "local",
+  mcpConfig?: McpConfig,
 ) {
   const provider: DataProvider =
-      mode === "mcp" ? new PendingMcpProvider() : new LocalProvider(store),
+      mode === "mcp"
+        ? mcpConfig
+          ? new McpProvider(store, mcpConfig)
+          : new PendingMcpProvider()
+        : new LocalProvider(store),
     analysis =
       provider instanceof LocalProvider ? new AnalysisService(provider) : null,
     attempts = new Map<string, { count: number; until: number }>();
@@ -69,7 +76,11 @@ export function createApp(
       const url = new URL(req.url || "/", "http://localhost"),
         pathname = url.pathname;
       if (pathname === "/api/health") {
-        send(res, 200, { ok: true, mode: provider.mode, mcpReady: false });
+        send(res, 200, {
+          ok: true,
+          mode: provider.mode,
+          mcpReady: provider instanceof McpProvider,
+        });
         return;
       }
       if (pathname.startsWith("/api/")) {
@@ -201,13 +212,23 @@ export function createApp(
           return;
         }
         if (pathname.startsWith("/api/tickets/") && method === "GET") {
-          const ticket = w.tickets.find(
-            (t) => t.id === decodeURIComponent(pathname.slice(13)),
-          );
+          const ticket =
+            provider instanceof LocalProvider
+              ? await provider.getTicket(
+                  actor,
+                  decodeURIComponent(pathname.slice(13)),
+                )
+              : undefined;
           requireValue(ticket, "工单不存在", 404);
           send(res, 200, ticket);
           return;
         }
+        if (pathname === "/api/messages" && w.integration)
+          throw new AppError(
+            503,
+            "MCP_TOOL_MISSING",
+            "当前 MCP 未提供消息日志接口",
+          );
         if (
           (pathname === "/api/tickets" || pathname === "/api/messages") &&
           method === "GET"

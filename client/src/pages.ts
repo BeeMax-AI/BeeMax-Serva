@@ -93,7 +93,7 @@ function staffTable(limit?: number) {
       .slice(0, limit)
       .map(
         (p) =>
-          `<tr><td><div class="person"><span class="avatar">${esc(p.name[0])}</span><div>${esc(p.name)}<small>${esc(groupName(p.groupId))} · ${p.active ? "当班" : "未在岗"}</small></div></div></td><td>${p.count} 单</td><td>${p.open} 单</td><td>${p.response} 分钟</td>${limit ? "" : `<td>${p.processing} 分钟</td>`}</tr>`,
+          `<tr><td><div class="person"><span class="avatar">${esc(p.name[0])}</span><div>${esc(p.name)}<small>${esc(groupName(p.groupId))} · ${esc(p.scheduleLabel || (p.active ? "当班" : "未在岗"))}</small></div></div></td><td>${p.count} 单</td><td>${p.open} 单</td><td>${p.response} 分钟</td>${limit ? "" : `<td>${p.processing} 分钟</td>`}</tr>`,
       ),
   );
 }
@@ -153,7 +153,7 @@ export function tickets() {
   );
   return (
     title("工单明细", "追踪每个处理节点，查看状态、负责人和完整记录。") +
-    `<section class="panel"><div class="filters"><label class="search">${icon("search")}<input id="search" aria-label="搜索工单" placeholder="搜索工单、${esc(w().tenant.referenceLabel)}、问题或负责人" value="${esc(state.query)}"></label><select data-filter="status" aria-label="筛选状态">${options(
+    `<section class="panel"><div class="filters"><label class="search">${icon("search")}<input id="search" aria-label="搜索工单" placeholder="搜索工单、${esc(w().tenant.referenceLabel)}、${w().integration ? "类型" : "问题"}或负责人" value="${esc(state.query)}"></label><select data-filter="status" aria-label="筛选状态">${options(
       Object.entries(statuses).map(([id, name]) => ({ id, name })),
       state.status,
       "全部状态",
@@ -177,7 +177,7 @@ export function staff() {
       "基于人员配置与工单时间戳计算。",
       button("管理排班", "roster"),
     ) +
-    `<div class="filters"><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></div>` +
+    `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}<div class="filters"><select data-filter="group" aria-label="筛选人员小组">${options(w().groups, state.group, "全部小组")}</select></div>` +
     rail([
       ["人员", rows.length, "当前筛选范围"],
       ["今日接单", rows.reduce((n, p) => n + p.count, 0), "按接单时间"],
@@ -188,6 +188,11 @@ export function staff() {
   );
 }
 export function accounts() {
+  if (w().integration)
+    return (
+      title("企微账号", "连接管理") +
+      empty("当前 MCP 未提供企微实例及主动推送授权接口，待补充接口后开放。")
+    );
   const rows = w().accounts.filter(
     (a) => !state.account || a.id === state.account,
   );
@@ -235,6 +240,11 @@ export const messageStatuses: Record<string, string> = {
   failed: "发送失败",
 };
 export function messages() {
+  if (w().integration)
+    return (
+      title("消息日志", "运行记录") +
+      empty("当前 MCP 未提供消息收发日志接口，工单流转记录可在工单详情中查看。")
+    );
   const scoped = w().messages.filter(
       (m) => !state.account || m.accountId === state.account,
     ),

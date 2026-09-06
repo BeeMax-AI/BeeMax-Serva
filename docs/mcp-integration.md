@@ -1,60 +1,61 @@
-# MCP 接入契约与边界
+# MCP 接入与验收
 
-浏览器 → 本应用 `/api/*` → `DataProvider` → MCP Server → 既有数据库及业务引擎。
+浏览器 → 工作台 `/api/*` → 服务端 MCP 适配器 → 既有数据库与工单引擎。
 
-MCP 凭据只放后端，浏览器不获取 MCP Token。所有业务读取、写入经适配器，不由界面访问数据库。`shared/domain.ts` 定义前端消费的归一化结构；真实字段变化在后端映射，页面不按客户名或小组名判断业务。
+2026-09-06 已验证用户提供的 HTTPS 端点，支持 HTTP JSON-RPC，协议 `2024-11-05`，发现 18 个工具。生产端点与 token 仅保存在忽略入库的服务器配置中。初始化、会话头、JSON/SSE 响应、20 秒超时、8 MB 响应上限、禁止重定向均由 `mcp-client.ts` 处理。错误不回传远端 URL 或原始错误内容。
 
-## 适配入口
+## 配置
 
-`server/src/provider.ts` 的 `DataProvider`：
+默认读取 `DATA_DIR/mcp-connection.json`（默认 `.local/`），也可设置 `MCP_CONFIG_FILE`。文件应设为 `0600`，仅供服务进程读取：
 
-- `read(actor)`：返回该租户可见的 Workspace。
-- `command(actor, command)`：按动作执行远程工具，并返回版本。
+```json
+{
+  "url": "https://your-server.example/mcp?token=REPLACE_ON_SERVER",
+  "tenantId": "your-local-tenant-id",
+  "tenantName": "客户名称",
+  "referenceLabel": "服务对象"
+}
+```
 
-目前 `LocalProvider` 完整实现本地开发流程；`PendingMcpProvider` 明确返回 `MCP_NOT_CONFIGURED`。不要将 unknown tools/call 当作成功，不要在远程失败时回退写本地数据。
+该凭据绑定一个经过配置的本地客户身份。服务端依据登录会话校验客户，其他客户账号在发出远端请求之前被拒绝。不能使用浏览器提交的 tenantId 或 by 越权访问。当前仅配置一个 MCP 数据源；更多客户需增加服务端数据源注册配置，不能共用当前客户凭据。
 
-`read` 是当前小规模联调的聚合边界，正式数据量增大时，使用 `/api/tickets`、`/api/messages` 的分页契约，将聚合加载拆成对应资源读取，并保留前端的过滤查询结构。当前主界面使用 bootstrap 的本地记录集合进行筛选，不宣称已完成大数据量服务端分页界面。
+发现配置后自动启用 MCP；显式 `DATA_PROVIDER=mcp` 且未提供配置时返回 503。显式 `DATA_PROVIDER=local` 仅用于本地开发。认证会话仍由本工作台 SQLite 管理。
 
-## 已有业务动作与预期工具映射
+## 功能映射
 
-以下名称来自用户早期规格，仅是待核实映射清单，尚未进行网络调用。
-
-| 应用动作 | MCP 工具/待补能力 |
+| 工作台功能 | 远端工具 / 当前行为 |
 |---|---|
-| 配置读取 | get_config |
-| 配置历史 | list_config_changes |
-| 工单列表 / 详情 | list_tickets / get_ticket |
-| 总量与状态计数 | ticket_stats |
-| 排班 / 在岗查询 | get_roster / query_on_duty |
-| 路由读取 | get_routing_rules |
-| 催办 / 转派 | urge_ticket / reassign_ticket |
-| 挂起 / 恢复 / 完成 | hold_ticket / resume_ticket / complete_ticket |
-| 配置覆写 / 恢复默认 | set_config / clear_config |
-| 路由与排班写 | 确认 set_routing_rule、clear_routing_rule 及 roster 写工具实际参数 |
-| 企微账号、连接状态、消息、白名单、凭据 | 等待本次交付接口 |
-| 分析计划、历史报告、建议跟进、对话 | 确认由底座保存的工具与范围 |
+| 工单列表、统计 | `list_tickets(limit:1000)`、`ticket_stats` |
+| 正文和流转详情 | 按需 `get_ticket(id)`，列表不伪造正文 |
+| 人员、小组 | `get_roster`、`get_config(groups)`；显示默认及日期覆盖排班 |
+| 路由规则 | `get_routing_rules`；显示生效类型规则及学习关键词规则，只读 |
+| 催办、转派、挂起、恢复、完成 | 对应 `*_ticket` 工具；人工确认后执行；可能发送真实企微通知 |
+| 转派 | 仅目标小组，由远端选择处理人；不支持指定个人 |
+| 派单参数 | `set_config` 的固定路径：升级间隔、接单后完成提醒、挂起提前提醒，每次一项 |
+| 学习开关 | `transferLearning.autoApply`、`routingShadow.enabled`，每次一个布尔值 |
+| 企微实例、消息日志、白名单、QiWe 凭据 | 本次接口没有提供，显示不可用，不使用演示数据代替 |
+| 路由与排班编辑 | 本次未提供明确写工具，禁用编辑入口 |
+| 分析计划、报告、建议跟进、个人对话 | 工作台 SQLite 独立 `mcp:<tenant>` 命名空间存储，初始为空；分析读取 MCP 业务数据 |
 
-不要用 `set_config` 任意路径绕过 owner 红线。路径与动作须在后端显式映射和允许列表内；本地 `role`、`tenantId` 和 `by` 不接受浏览器覆盖。
+排班中的楼栋时段、专员和 `@ALL` 不等同于个人实时在岗，本界面不据此推测在岗状态，实际分配由远端业务引擎负责。读取覆盖仅限已加载记录；接口不能分页时最多取 1000 条，数量不足会明确注明统计为部分数据。读取缓存为 10 秒；过期读取失败直接报错。
 
-## 收到接口后需要确认
+远端 `open` 字段与所有非 `CLOSED` 状态数量存在口径差异（现场 8 与 12，数据会变化）。界面保留非闭环统一口径，并同时说明远端值，不擅自将 `NO_ACCEPT` 从待闭环中移除。
 
-1. Streamable HTTP 或其他传输、端点、初始化协议版本、session header、JSON/SSE 响应与超时约定。
-2. 鉴权方式与凭据交付；按客户鉴权还是单令牌携带租户范围；工具执行时如何强制隔离租户。
-3. tools/list 及每个工具的 JSON Schema；成功/错误样例；`content[].text`、`structuredContent` 的实际形态。
-4. 配置、人员、小组、实例、工单、消息的稳定 ID；状态枚举；缺失字段及时间戳单位；分页上限。
-5. 写操作的权限、审计、幂等键和乐观并发支持；状态变更是否同步、是否会向外发消息。
-6. 哪些功能暂不可用。缺少写工具时应显示只读状态与原因，不另造生产写入路径。
+## 写操作边界
 
-## HTTP 层
+服务端先校验角色、白名单动作、参数和最新远端快照版本，再提交。远端没有原子版本比较或幂等键，快照比较不能消除源系统同时写入的竞争，当前仅声明单进程联调能力。
 
-- `POST /api/login`、`POST /api/logout`
-- `GET /api/bootstrap`：身份、当前客户基础数据、配置、报告、本人对话、当前统计。
-- `GET /api/metrics?start=YYYY-MM-DD&end=YYYY-MM-DD`
-- `GET /api/tickets?q=&status=&group=&page=1&size=20`
-- `GET /api/tickets/:id`
-- `GET /api/messages?q=&status=&account=&page=1&size=20`
-- `POST /api/commands`：`{type,data,expectedRevision,requestId}`。
-- `POST /api/reports`：`{start,end,name?,requestId}`。
-- `POST /api/chat`：`{question,conversationId?,context?}`。
+工单工具只接收短码或房号，因此仅在已完整读取且短码唯一时提交短码，不能确认唯一性时拒绝。不会猜测完整 ID 可以放入 short 参数。提醒时间从 ISO 转换为明确 UTC+8 的 `YYYY-MM-DD HH:mm`。
 
-错误统一 `{error:{code,message}}`。401 重新登录，403 无权限，409 数据冲突/重复对象，503 MCP 未就绪。MCP 接入时将 transport、tool-level error 和权限错误映射到该结构，并确保响应不包含密钥。
+提交前持久记录请求 ID 和完整命令哈希。断连、超时、工具报错或无法识别的确认结构均标记结果待核对，相同请求 ID 不再自动发送；用户须先核对源系统，避免新请求重复业务操作。目前成功确认只接受明确 `ok:true` 或 `success:true`。真实写工具的成功响应仍需在授权业务操作时验证，如结构不同应先调整确认契约，不自动重试。
+
+仅开放固定配置路径；`clear_config`、任意路径写入、FAQ 学习等不在当前设计范围。变更记录目前展示经本工作台执行的操作，不冒充完整远端配置历史。
+
+## 验收
+
+- 实际端点只读：初始化和工具清单、197 条工单、3 个小组、37 条小组人员关系、17 条规则、工单正文和事件。计数是验收时快照。
+- 浏览器从真实后端登录后验证 MCP 模式、真实总览、详情、不可用功能提示。
+- 模拟 MCP 测试覆盖 JSON/SSE、客户隔离、字段映射、工作台元数据与业务数据分离、权限/版本冲突、重复请求、结果不明防重试、短码歧义、参数映射和凭据脱敏。
+- 未向真实群发送测试消息，未执行远端配置变更或工单状态写入。外部大模型尚未配置；当前 AI助手提供数据查询与规则分析。
+
+主要代码：`server/src/mcp-client.ts`、`server/src/mcp-provider.ts`、`shared/domain.ts`；回归测试：`tests/mcp.test.ts`。
