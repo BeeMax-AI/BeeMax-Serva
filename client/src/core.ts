@@ -23,6 +23,7 @@ export const state: {
   pageSize: number;
   extraPages: Record<string, number>;
   period: string;
+  overviewDays: 7 | 30;
   metrics: Metrics | null;
   report: string;
   date: string;
@@ -47,6 +48,7 @@ export const state: {
   pageSize: 20,
   extraPages: {},
   period: "week",
+  overviewDays: 7,
   metrics: null,
   report: "",
   date: "",

@@ -1,3 +1,5 @@
+import { overviewDimensionPanels, dimensionDescription } from "./overview-dimensions.js";
+import { readDimension, matchesDimension } from "../../shared/overview-dimensions.js";
 import { moduleTabs } from "./navigation.js";
 import { whitelistSection } from "./whitelist.js";
 import { connections } from "./connections.js";
@@ -126,7 +128,7 @@ export function overview() {
           (t) =>
             `<tr><td><strong>${esc(t.reference)}</strong><small>${esc(t.id)} · ${esc(t.subject)}</small></td><td>${statusTag(t.status)}</td><td>${esc(personName(t.assigneeId))}</td><td><button class="text-link" data-ticket="${esc(t.id)}">查看 →</button></td></tr>`,
         ),
-    )}</section><section class="panel"><div class="panel-heading"><h2>人员负载</h2><a class="text-link" href="#staff">人员明细 →</a></div>${staffTable(4)}</section></div>`
+    )}</section><section class="panel"><div class="panel-heading"><h2>人员负载</h2><a class="text-link" href="#staff">人员明细 →</a></div>${staffTable(4)}</section></div>` + overviewDimensionPanels()
   );
 }
 function bars(items: { name: string; value: number }[]) {
@@ -146,8 +148,10 @@ export function trends() {
   );
 }
 export function tickets() {
+  const dimension = readDimension(typeof location === "undefined" ? "" : location.hash);
   const rows = w().tickets.filter(
     (t) =>
+      (!dimension || matchesDimension(t, dimension)) &&
       (!state.status || t.status === state.status) &&
       (!state.group || t.groupId === state.group) &&
       [t.id, t.subject, t.reference, personName(t.assigneeId), t.type]
@@ -158,6 +162,7 @@ export function tickets() {
   return (
     title("工单管理", "追踪工单处理进度，查看业务趋势与分布。") +
     moduleTabs("tickets") +
+    (dimension ? `<div class="dimension-filter"><span>筛选：${esc(dimensionDescription(dimension))}</span><a class="text-link" href="#tickets">清除维度筛选</a></div>` : "") +
     `<section class="panel"><div class="filters"><label class="search">${icon("search")}<input id="search" aria-label="搜索工单" placeholder="搜索工单、${esc(w().tenant.referenceLabel)}、${w().integration ? "类型" : "问题"}或负责人" value="${esc(state.query)}"></label><select data-filter="status" aria-label="筛选状态">${options(
       Object.entries(statuses).map(([id, name]) => ({ id, name })),
       state.status,

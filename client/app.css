@@ -810,3 +810,37 @@ aside.panel {
 .exclusion-person button { flex-shrink: 0; }
 .exclusion-preview { overflow-wrap: anywhere; }
 @media (max-width: 540px) { .exclusion-inputs { grid-template-columns: 1fr; gap: 0; } }
+
+.overview-dimensions { margin-top: 28px; }
+.dimension-heading { padding: 0; margin-bottom: 20px; align-items: center; }
+.overview-dimensions .panel-heading p { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+.dimension-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; }
+.dimension-grid > .panel { min-width: 0; display: flex; flex-direction: column; }
+.dimension-grid .panel-footer { margin-top: auto; }
+.dimension-bars { padding: 24px; display: grid; gap: 22px; }
+.dimension-bar { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(60px, 1.3fr) auto; gap: 16px; align-items: center; }
+.dimension-bar > span:first-child { overflow-wrap: anywhere; }
+.dimension-bar > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.dimension-bar small { display: block; color: var(--muted); font-size: 12px; }
+.dimension-track { height: 8px; background: var(--soft); border-radius: 4px; overflow: hidden; }
+.dimension-track i { display: block; height: 100%; background: var(--blue); border-radius: inherit; }
+.dimension-grid .table-box { margin-top: 16px; }
+.dimension-grid td { white-space: nowrap; }
+.dimension-method { padding: 12px 24px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); margin-top: auto; }
+.dimension-method summary { cursor: pointer; }
+.hour-scroll { padding: 24px; overflow-x: auto; }
+.hour-chart { min-width: 440px; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 4px; }
+.hour-column { min-width: 0; text-align: center; border-radius: 4px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.hour-column > span { display: block; height: 18px; }
+.hour-column > div { height: 140px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+.hour-column i { display: block; width: 70%; background: var(--blue); border-radius: 3px 3px 0 0; }
+.hour-column small { display: block; margin-top: 8px; color: var(--muted); }
+.hour-column:hover { background: var(--blue-soft); }
+.dimension-filter { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; margin-bottom: 18px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; }
+.dimension-filter a { white-space: nowrap; }
+@media (max-width: 1100px) { .dimension-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 540px) { .dimension-heading { align-items: flex-start; gap: 12px; flex-direction: column; } .dimension-bars { padding: 18px; } .dimension-bar { gap: 10px; } .dimension-filter { align-items: flex-start; flex-direction: column; } }
+.dimension-grid table { min-width: 460px; }
+.dimension-grid th, .dimension-grid td { padding: 12px 10px; font-size: 12px; }
+.dimension-grid th:first-child, .dimension-grid td:first-child { padding-left: 16px; }
+.dimension-grid th:last-child, .dimension-grid td:last-child { padding-right: 16px; }

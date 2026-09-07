@@ -347,7 +347,7 @@ async function runLoad(automatic = false): Promise<SyncOutcome> {
     if (!state.date) state.date = boot.today;
     syncPhase = "synced";
     syncSchedule.reset();
-    state.page = location.hash.slice(1) || "insights";
+    state.page = location.hash.slice(1).split("?")[0] || "insights";
     if (!isKnownPage(state.page))
       state.page = "overview";
     if (!document.querySelector("#content")) renderShell();
@@ -476,6 +476,13 @@ async function handleClick(e: MouseEvent) {
     document
       .querySelector<HTMLElement>(`[data-tab="${state.tab}"]`)
       ?.focus({ preventScroll: true });
+    return;
+  }
+  if (b.dataset.overviewDays) {
+    state.overviewDays = b.dataset.overviewDays === "30" ? 30 : 7;
+    state.extraPages["overview-groups"] = 1;
+    renderContent();
+    document.querySelector<HTMLElement>(`[data-overview-days="${state.overviewDays}"]`)?.focus({ preventScroll: true });
     return;
   }
   if (b.dataset.period) {
@@ -678,6 +685,10 @@ async function handleClick(e: MouseEvent) {
       state.group = "";
       state.tier = "";
       state.listPage = 1;
+      if (state.page === "tickets" && location.hash.includes("?")) {
+        navigate("tickets");
+        return;
+      }
       renderContent();
     },
     export: () => {
@@ -849,7 +860,7 @@ window.addEventListener("hashchange", () => {
   state.tier = "";
   state.listPage = 1;
   state.extraPages = {};
-  state.page = location.hash.slice(1) || "insights";
+  state.page = location.hash.slice(1).split("?")[0] || "insights";
   document.body.classList.remove("nav-open");
   closeModal();
   showLoadedPage();
