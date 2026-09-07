@@ -1,6 +1,6 @@
 import { connections, confirmConnectionCommand } from "./connections.js";
 import { qiweContent } from "./qiwe.js";
-import { accessContent, connectionContent } from "./mcp.js";
+import { connectionContent } from "./mcp.js";
 import type { Plan, Ticket, AnalysisTask } from "../../shared/domain.js";
 import {
   state,
@@ -36,14 +36,13 @@ export const tabs = [
   ["routing", "路由规则"],
   ["roster", "排班人员"],
   ["parameters", "派单参数"],
-  ["access", "群与权限"],
-  ["push", "推送群设置"],
   ["learning", "学习与灰度"],
   ["connection", "QiWe 连接"],
   ["mcp", "MCP 数据连接"],
   ["audit", "变更记录"],
 ];
 export function settings() {
+  if (!tabs.some(([id]) => id === state.tab)) state.tab = "routing";
   return (
     title(
       "规则清楚，协作有序。",
@@ -75,6 +74,9 @@ const auditNames: Record<string, string> = {
   "account.save": "保存实例",
   "group.add": "新增群授权",
   "group.remove": "移除群授权",
+  "member.add": "新增人员授权",
+  "member.remove": "移除人员授权",
+  "group.push": "调整群推送",
   "credentials.save": "更新连接凭据",
   "plan.save": "保存分析计划",
   "plan.delete": "删除分析计划",
@@ -84,7 +86,6 @@ const auditNames: Record<string, string> = {
 function content() {
   const data = w();
   if (data.integration && state.tab === "mcp") return connectionContent();
-  if (data.integration && state.tab === "access") return accessContent();
   const matches = (...values: unknown[]) =>
     values.join(" ").toLowerCase().includes(state.query.trim().toLowerCase());
   const routes = data.routes.filter(
@@ -166,16 +167,6 @@ function content() {
             `<div class="config-row"><h3>${n}</h3><strong>${v} 分钟</strong></div>`,
         )
         .join("")}`;
-    case "access":
-    case "push":
-      return `<div class="config-title"><div><h2>主动推送群设置</h2><p>按企微实例管理推送范围；消息通道接入后同步生效。</p></div><button class="button" data-action="add-account" ${canWrite() ? "" : "disabled"}>添加企微账号</button></div>${
-        slicePage(connections().accounts)
-          .map(
-            (a) =>
-              `<div class="config-row"><div><h3>${esc(a.name)}</h3><p>${a.groups.length} 个已配置群</p></div><button class="button" data-agent="${esc(a.id)}">管理推送群 →</button></div>`,
-          )
-          .join("") || empty("暂无账号实例，请先添加企微账号")
-      }${pager(connections().accounts.length)}`;
     case "learning":
       return `<div class="config-title"><div><h2>学习与灰度</h2><p>修改后由后端保存配置。</p></div></div>${[
         ["autoApply", "转单学习自动应用"],
@@ -366,7 +357,7 @@ export function editAccount(id = "") {
         "text",
         'required maxlength="60"',
       ) +
-      `<div class="note-band">保存实例信息后，可继续配置推送群。企微登录接口尚未接入。</div>`,
+      `<div class="note-band">保存实例信息后，可继续管理白名单。企微登录接口尚未接入。</div>`,
     {
       label: "预览变更",
       run: (form) => {

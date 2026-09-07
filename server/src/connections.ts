@@ -34,7 +34,14 @@ export function connectionCommand(
   requireValue(actor.role !== "viewer", "当前账号只有查看权限", 403);
   requireValue(
     command &&
-      ["account.save", "group.add", "group.remove"].includes(command.type) &&
+      [
+        "account.save",
+        "group.add",
+        "group.remove",
+        "member.add",
+        "member.remove",
+        "group.push",
+      ].includes(command.type) &&
       command.data &&
       typeof command.data === "object" &&
       !Array.isArray(command.data),
@@ -99,32 +106,41 @@ export function connectionCommand(
     } else {
       const account = state.accounts.find((a) => a.id === data.accountId);
       requireValue(account, "账号实例不存在", 404);
-      const chatId = text(data.chatId, "会话 ID", 128);
-      requireValue(
-        /^[a-zA-Z0-9_:\-]+$/.test(chatId),
-        "会话 ID 请使用字母、数字、下划线、短横线或冒号",
+      const member = command.type.startsWith("member.");
+      account.members ||= [];
+      const id = text(
+        member ? data.userId : data.chatId,
+        member ? "人员 ID" : "群 ID",
+        128,
       );
-      if (command.type === "group.add") {
-        requireValue(
-          !account.groups.some((g) => g.id === chatId),
-          "该会话已在当前实例的名单中",
-          409,
-        );
-        requireValue(account.groups.length < 2000, "推送群数量已达上限");
+      requireValue(
+        /^[a-zA-Z0-9_:\-]+$/.test(id),
+        "ID 请使用字母、数字、下划线、短横线或冒号",
+      );
+      const entries = member ? account.members : account.groups;
+      const entry = entries.find((item) => item.id === id);
+      if (command.type === "group.push") {
+        requireValue(entry, "请先将群加入白名单", 404);
+        requireValue(typeof data.enabled === "boolean", "推送开关无效");
+        account.groups.find((g) => g.id === id)!.pushEnabled = data.enabled;
+        detail = `${data.enabled ? "开启" : "关闭"}群推送配置：${id}`;
+      } else if (command.type.endsWith(".add")) {
+        requireValue(!entry, "该对象已在当前实例的白名单中", 409);
+        requireValue(entries.length < 2000, "白名单数量已达上限");
         const name =
           data.name === "" || data.name === undefined
             ? ""
-            : text(data.name, "群名称", 40);
-        account.groups.push({ id: chatId, name, addedAt: now });
-        detail = `保存推送群配置：${name || chatId}`;
+            : text(data.name, "名称", 40);
+        if (member) account.members.push({ id, name, addedAt: now });
+        else
+          account.groups.push({ id, name, addedAt: now, pushEnabled: false });
+        detail = `添加${member ? "人员" : "群"}白名单：${name || id}`;
       } else {
-        requireValue(
-          account.groups.some((g) => g.id === chatId),
-          "推送群配置不存在",
-          404,
-        );
-        account.groups = account.groups.filter((g) => g.id !== chatId);
-        detail = `移除推送群配置：${chatId}`;
+        requireValue(entry, "白名单记录不存在", 404);
+        if (member)
+          account.members = account.members.filter((item) => item.id !== id);
+        else account.groups = account.groups.filter((item) => item.id !== id);
+        detail = `移除${member ? "人员" : "群"}白名单：${id}`;
       }
       target = account.id;
     }

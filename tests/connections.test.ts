@@ -213,3 +213,94 @@ for (const mode of ["local", "mcp"])
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+test("instance whitelist keeps legacy push groups, isolates members and validates push targets", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qf-whitelist-"));
+  const store = new Store(dir);
+  const { connectionCommand, readConnections } =
+    await import("../server/src/connections.ts");
+  const actor: Actor = {
+    id: "admin",
+    name: "管理",
+    role: "admin",
+    tenantId: "demo",
+  };
+  const run = (type: string, data: Record<string, unknown>, who = actor) =>
+    connectionCommand(store, who, {
+      type,
+      data,
+      requestId: randomUUID(),
+      expectedRevision: readConnections(store, who.tenantId).revision,
+    });
+  try {
+    const a = run("account.save", { name: "账号一", company: "公司" })
+      .accounts[0].id;
+    const b = run("account.save", { name: "账号二", company: "公司" })
+      .accounts[1].id;
+    // Pre-existing groups represented an enabled push configuration.
+    const old = readConnections(store, "demo");
+    old.accounts[0].groups.push({
+      id: "legacy",
+      name: "旧群",
+      addedAt: "2026-09-06T00:00:00Z",
+    });
+    store.db
+      .prepare("UPDATE wecom_connections SET data=? WHERE tenant=?")
+      .run(JSON.stringify(old), "demo");
+    let value = run("group.add", { accountId: a, chatId: "new", name: "新群" });
+    assert.equal(value.accounts[0].groups[0].pushEnabled, undefined);
+    assert.equal(value.accounts[0].groups[1].pushEnabled, false);
+    assert.throws(
+      () =>
+        run("group.push", { accountId: a, chatId: "missing", enabled: true }),
+      /先将群/,
+    );
+    assert.throws(
+      () => run("group.push", { accountId: a, chatId: "new", enabled: "true" }),
+      /无效/,
+    );
+    value = run("group.push", { accountId: a, chatId: "new", enabled: true });
+    assert.equal(value.accounts[0].groups[1].pushEnabled, true);
+    run("member.add", { accountId: a, userId: "person_1", name: "人员一" });
+    run("member.add", { accountId: b, userId: "person_1", name: "人员一" });
+    assert.throws(
+      () => run("member.add", { accountId: a, userId: "person_1" }),
+      /已在/,
+    );
+    assert.throws(
+      () => run("member.add", { accountId: a, userId: "<bad>" }),
+      /ID 请/,
+    );
+    for (const [type, data] of [
+      ["member.add", { accountId: a, userId: "x" }],
+      ["member.remove", { accountId: a, userId: "person_1" }],
+      ["group.push", { accountId: a, chatId: "new", enabled: false }],
+    ] as const) {
+      assert.throws(
+        () => run(type, data, { ...actor, role: "viewer" }),
+        /查看权限/,
+      );
+      assert.throws(
+        () => run(type, data, { ...actor, tenantId: "other" }),
+        /不存在/,
+      );
+    }
+    run("member.remove", { accountId: a, userId: "person_1" });
+    value = run("group.remove", { accountId: a, chatId: "new" });
+    assert.equal(value.accounts[0].members?.length, 0);
+    assert.equal(value.accounts[1].members?.length, 1);
+    assert.deepEqual(
+      value.accounts[0].groups.map((g) => g.id),
+      ["legacy"],
+    );
+    const reopened = new Store(dir);
+    assert.equal(
+      readConnections(reopened, "demo").accounts[1].members?.[0].id,
+      "person_1",
+    );
+    reopened.close();
+  } finally {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

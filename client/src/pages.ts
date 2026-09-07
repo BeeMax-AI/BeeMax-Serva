@@ -202,6 +202,7 @@ export function accounts() {
       "企微账号",
       "统一管理服务账号，让消息、Agent 与工单协同。",
       button("连接设置", "credentials") +
+        button("渠道访问权限", "channel-access") +
         button(`${icon("plus")}添加企微账号`, "add-account", true, !canWrite()),
     ) +
     rail([
@@ -214,35 +215,17 @@ export function accounts() {
       ["连接来源", "QiWe", "企业微信通道"],
       ["数据模式", "配置管理", "独立于工单数据源"],
     ]) +
-    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理推送范围与消息记录。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(connections().accounts, state.account, "全部实例")}</select></div>${
+    `<section class="panel"><div class="config-title"><div><h2>账号实例</h2><p>每个实例独立管理群、人员授权与推送范围。</p></div><select data-filter="account" aria-label="筛选账号实例">${options(connections().accounts, state.account, "全部实例")}</select></div>${
       slicePage(rows)
         .map(
           (a) =>
-            `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "待连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>企微登录待接入</small></div><div class="account-fact"><small>主动推送范围</small><strong>${a.groups.length} 个已配置群</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">Agent 详情 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
+            `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "待连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>企微登录待接入</small></div><div class="account-fact"><small>白名单</small><strong>${a.groups.length} 个群 · ${a.members?.length || 0} 人</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">白名单 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
         )
         .join("") || empty("暂无账号实例，点击「添加企微账号」开始配置")
-    }${pager(rows.length)}</section><div class="connection-note">实例与推送群配置已独立保存；登录及消息通道待接入。</div>`
+    }${pager(rows.length)}</section><div class="connection-note">实例与白名单配置已独立保存；登录及消息通道待接入。</div>`
   );
 }
-export function agent() {
-  const a =
-    connections().accounts.find((a) => a.id === state.agent) ||
-    connections().accounts[0];
-  if (!a) return empty("请先添加账号实例");
-  state.agent = a.id;
-  return (
-    `<a class="connection-back text-link" href="#accounts">← 返回企微账号</a>` +
-    title("Agent 详情", "管理当前账号的主动推送范围。", tag("推送配置待同步")) +
-    `<div class="agent-identity"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>实例 ID：${esc(a.id)}</small></div></div><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><section class="panel"><div class="config-title"><div><h2>添加主动推送群</h2><p>支持长短会话 ID；名称用于识别。</p></div>${tag(`${a.groups.length} 个已配置`)}</div><form id="whitelist-form" class="whitelist-form"><label>会话 ID（chat_id）<input name="chatId" required maxlength="128" placeholder="填写会话 ID"></label><label>群名称（可选）<input name="name" maxlength="40" placeholder="例如 客服工作群"></label><button class="button primary" ${canWrite() ? "" : "disabled"}>保存推送群</button></form></section><section class="panel authorized-panel"><div class="config-title"><div><h2>已配置群</h2><p>主动推送名单待通道接入后生效。</p></div><button class="text-link" data-action="push-settings">推送群设置 →</button></div>${
-      slicePage(a.groups)
-        .map(
-          (g) =>
-            `<div class="authorized-row"><span class="group-medallion">${icon("chat")}</span><div><strong>${esc(g.name || "未命名群")}</strong><code>${esc(g.id)}</code><small>加入于 ${fmt(g.addedAt)}</small></div><button class="icon-button" aria-label="移除${esc(g.name || g.id)}" data-remove-group="${esc(g.id)}" ${canWrite() ? "" : "disabled"}>${icon("close")}</button></div>`,
-        )
-        .join("") || empty("尚未配置推送群")
-    }${pager(a.groups.length)}</section>`
-  );
-}
+export { whitelistPage as agent } from "./whitelist.js";
 export const messageStatuses: Record<string, string> = {
   completed: "已完成",
   pending: "等待回调",

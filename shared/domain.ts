@@ -56,7 +56,13 @@ export interface Account {
   company: string;
   login: string;
   status: "online" | "offline";
-  groups: { id: string; name: string; addedAt: string }[];
+  groups: {
+    id: string;
+    name: string;
+    addedAt: string;
+    pushEnabled?: boolean;
+  }[];
+  members?: { id: string; name: string; addedAt: string }[];
 }
 export interface Message {
   id: string;

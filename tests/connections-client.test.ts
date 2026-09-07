@@ -179,3 +179,46 @@ test("migrated connection pages use independent records, paginate 20/30 and filt
     state.pageSize = 20;
   }
 });
+
+test("whitelist navigation moves to accounts and preserves explicit channel scope", async () => {
+  const { whitelistPage } = await import("../client/src/whitelist.ts");
+  const { tabs } = await import("../client/src/settings.ts");
+  state.boot = boot(1);
+  state.boot.connections!.accounts = [
+    {
+      id: "a",
+      name: "测试实例",
+      company: "公司",
+      login: "未登录",
+      status: "offline",
+      groups: [
+        { id: "old", name: "旧群", addedAt: "2026-09-06" },
+        { id: "new", name: "新群", addedAt: "2026-09-06", pushEnabled: false },
+      ],
+      members: [{ id: "p", name: "<用户>", addedAt: "2026-09-06" }],
+    },
+  ];
+  state.agent = "a";
+  state.listPage = 1;
+  state.whitelistTab = "authorization";
+  state.whitelistKind = "members";
+  assert.ok(!tabs.some(([id]) => ["push", "access"].includes(id)));
+  let html = whitelistPage();
+  assert.match(html, /人员白名单/);
+  assert.match(html, /&lt;用户&gt;/);
+  assert.match(html, /data-kind="member"/);
+  state.whitelistTab = "push";
+  html = whitelistPage();
+  assert.match(html, /1 个群开启/);
+  assert.match(html, /data-push-group="old" data-enabled="false"/);
+  assert.match(html, /data-push-group="new" data-enabled="true"/);
+  state.whitelistTab = "access";
+  state.agent = "";
+  html = whitelistPage();
+  assert.match(html, /生效范围：整个渠道/);
+  assert.match(html, /data-whitelist-tab="authorization"[^>]*disabled/);
+  state.agent = "a";
+  state.whitelistTab = "authorization";
+  state.boot.actor.role = "viewer";
+  assert.doesNotMatch(whitelistPage(), /id="whitelist-form"/);
+});

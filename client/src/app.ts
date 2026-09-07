@@ -254,7 +254,7 @@ function login() {
 function renderShell() {
   const a = state.boot!.actor;
   document.querySelector("#app")!.innerHTML =
-    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号 / Agent 详情" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
+    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号 / 白名单" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
 }
 function renderContent() {
   if (!state.boot) return;
@@ -387,7 +387,7 @@ function updateNavigation() {
   if (crumb)
     crumb.textContent =
       state.page === "agent"
-        ? "企微账号 / Agent 详情"
+        ? "企微账号 / 白名单"
         : navs.find((n) => n[0] === state.page)?.[2] || "运营总览";
 }
 function showLoadedPage() {
@@ -490,7 +490,40 @@ async function handleClick(e: MouseEvent) {
     toggleQiweSecret(b as HTMLButtonElement);
     return;
   }
+  if (b.dataset.whitelistTab || b.dataset.whitelistKind) {
+    if (b.dataset.whitelistTab)
+      state.whitelistTab = b.dataset.whitelistTab as typeof state.whitelistTab;
+    if (b.dataset.whitelistKind)
+      state.whitelistKind = b.dataset
+        .whitelistKind as typeof state.whitelistKind;
+    state.listPage = 1;
+    renderContent();
+    document
+      .querySelector<HTMLElement>(
+        b.dataset.whitelistTab
+          ? `[data-whitelist-tab="${state.whitelistTab}"]`
+          : `[data-whitelist-kind="${state.whitelistKind}"]`,
+      )
+      ?.focus({ preventScroll: true });
+    return;
+  }
+  if (b.dataset.pushGroup) {
+    confirmConnectionCommand(
+      "确认调整推送范围",
+      `${b.dataset.enabled === "true" ? "开启" : "关闭"}群 ${b.dataset.pushGroup} 的主动推送配置。`,
+      "group.push",
+      {
+        accountId: state.agent,
+        chatId: b.dataset.pushGroup,
+        enabled: b.dataset.enabled === "true",
+      },
+    );
+    return;
+  }
   if (b.dataset.agent) {
+    state.whitelistTab = "authorization";
+    state.whitelistKind = "groups";
+    state.listPage = 1;
     state.agent = b.dataset.agent;
     navigate("agent");
     return;
@@ -550,13 +583,18 @@ async function handleClick(e: MouseEvent) {
       { ...w().learning, [key]: !w().learning[key] },
     );
   }
-  if (b.dataset.removeGroup)
+  if (b.dataset.whitelistRemove) {
+    const member = b.dataset.kind === "member";
     confirmConnectionCommand(
-      "移除主动推送授权",
-      `将移除群 ${b.dataset.removeGroup} 的推送配置，保留历史消息。`,
-      "group.remove",
-      { accountId: state.agent, chatId: b.dataset.removeGroup },
+      "移除白名单授权",
+      `移除${member ? "人员" : "群"} ${b.dataset.whitelistRemove}。${member ? "" : "对应的主动推送配置也会移除。"}`,
+      member ? "member.remove" : "group.remove",
+      {
+        accountId: state.agent,
+        [member ? "userId" : "chatId"]: b.dataset.whitelistRemove,
+      },
     );
+  }
   if (b.dataset.message) {
     const m = connections().messages.find((m) => m.id === b.dataset.message);
     if (!m) return;
@@ -612,9 +650,11 @@ async function handleClick(e: MouseEvent) {
     "roster-import": () => editRoster(true),
     "add-account": () => editAccount(),
     "refresh-connections": () => refreshConnections(),
-    "push-settings": () => {
-      state.tab = "push";
-      navigate("settings");
+    "channel-access": () => {
+      state.agent = "";
+      state.whitelistTab = "access";
+      state.listPage = 1;
+      navigate("agent");
     },
     "add-route": () => editRoute(),
     "add-person": () => editPerson(),
@@ -715,10 +755,10 @@ document.addEventListener("submit", (e) => {
     e.preventDefault();
     const d = formData(form);
     confirmConnectionCommand(
-      "确认保存推送群",
-      `${d.name || "未命名群"} · ${d.chatId}`,
-      "group.add",
-      { ...d, accountId: state.agent },
+      "确认加入白名单",
+      `${d.name || "未命名对象"} · ${d.chatId || d.userId}`,
+      form.dataset.kind === "member" ? "member.add" : "group.add",
+      { ...d, accountId: form.dataset.accountId },
     );
   }
   if (form.id === "credential-form") {
@@ -796,8 +836,7 @@ window.addEventListener("connections-updated", () => {
   if (!state.boot) return;
   if (
     ["accounts", "agent", "messages"].includes(state.page) ||
-    (state.page === "settings" &&
-      ["push", "access", "audit"].includes(state.tab))
+    (state.page === "settings" && state.tab === "audit")
   )
     renderContent();
 });

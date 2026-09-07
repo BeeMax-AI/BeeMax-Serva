@@ -8,6 +8,8 @@ export const state: {
   tab: string;
   account: string;
   agent: string;
+  whitelistTab: "authorization" | "push" | "access";
+  whitelistKind: "groups" | "members";
   query: string;
   status: string;
   group: string;
@@ -27,6 +29,8 @@ export const state: {
   tab: "routing",
   account: "",
   agent: "",
+  whitelistTab: "authorization",
+  whitelistKind: "groups",
   query: "",
   status: "",
   group: "",

@@ -770,3 +770,6 @@ aside.panel {
 .qiwe-connection-meta { padding:18px 26px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--muted); font-size:11px; border-top:1px solid var(--line); }
 .qiwe-readonly { padding:26px; color:var(--muted); font-size:13px; line-height:2.5; }
 @media(max-width:680px) { .qiwe-panel { margin:18px auto; } .qiwe-card-head { flex-wrap:wrap; padding:20px; } .qiwe-card-head .status { margin-left:60px; } .qiwe-fields { padding:22px 20px 0; } .qiwe-field { grid-template-columns:minmax(0,1fr); gap:9px; margin-bottom:24px; } .qiwe-field>label { padding-top:0; } .qiwe-form-actions { padding:18px 20px; flex-wrap:wrap; justify-content:flex-end; } .qiwe-form-actions>span { width:100%; margin-bottom:6px; } .qiwe-connection-meta { padding:18px 20px; flex-wrap:wrap; } }
+
+.whitelist-types { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px 20px; }
+.whitelist-id { overflow-wrap: anywhere; max-width: 300px; }
