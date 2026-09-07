@@ -90,8 +90,7 @@ export function renderBrief(data: BriefData, root: string): Promise<Buffer> {
         doc.addPage();
         doc.rect(0, 0, 595.28, 5).fill(C.blue);
         SVGtoPDF(doc, logo, LEFT, 32, { width: 25, height: 28 });
-        text("BeeMax Serva", 76, 34, 200, 14, C.navy, 23, true);
-        text("AI 服务运营平台", 76, 54, 200, 8, C.muted, 18);
+        text("AI 服务运营平台", 76, 40, 200, 10, C.muted, 23);
         text("OPERATIONS / BRIEF", 390, 40, 165, 9, C.action, 20, true);
         line(LEFT, 83, WIDTH);
         text(title, LEFT, 103, WIDTH, 27, C.navy, 45);
