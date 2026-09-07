@@ -1,3 +1,4 @@
+import { pageSizes } from "../../shared/pagination.js";
 import { notificationLevels } from "./notifications.js";
 import type { RemoteAnalytics } from "../../shared/domain.js";
 import {
@@ -359,7 +360,7 @@ export async function queryAnalytics(initial = "overview") {
               row.map((v) => "<td>" + esc(v) + "</td>").join("") +
               "</tr>",
           ),
-      )}</div><div class="connection-pagination"><label>每页<select data-remote-size>${[20, 30].map((n) => `<option ${n === size ? "selected" : ""}>${n}</option>`).join("")}</select></label><span>共 ${rows.length} 条 · 第 ${page} / ${pages} 页</span><button type="button" class="button" data-remote-step="-1" ${page === 1 ? "disabled" : ""}>上一页</button><button type="button" class="button" data-remote-step="1" ${page === pages ? "disabled" : ""}>下一页</button></div>`,
+      )}</div><div class="connection-pagination"><label>每页<select data-remote-size>${pageSizes.map((n) => `<option ${n === size ? "selected" : ""}>${n}</option>`).join("")}</select></label><span>共 ${rows.length} 条 · 第 ${page} / ${pages} 页</span><button type="button" class="button" data-remote-step="-1" ${page === 1 ? "disabled" : ""}>上一页</button><button type="button" class="button" data-remote-step="1" ${page === pages ? "disabled" : ""}>下一页</button></div>`,
       {
         label: "查询统计",
         run: async (form) => {

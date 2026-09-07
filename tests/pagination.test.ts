@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { pageWindow } from "../shared/pagination.ts";
 import { state, slicePage, pager, setPage } from "../client/src/core.ts";
+import { roster } from "../client/src/roster.ts";
 import { settings } from "../client/src/settings.ts";
 import { staff, tickets, insights } from "../client/src/pages.ts";
 import { seed } from "../server/src/seed.ts";
@@ -67,32 +68,39 @@ test("empty results and pages after filtering or deletion clamp correctly", () =
   assert.equal(pageWindow(3, 4, 30).page, 1);
   assert.equal(pageWindow(21, 0, 20).page, 1);
 });
-test("roster, routes and audit share 20/30 paging and include the final records", () => {
+test("roster, routes and audit share 10/20/30 paging and include the final records", () => {
   setup();
   for (const tab of ["roster", "routing", "audit"]) {
     state.tab = tab;
+    const render = tab === "roster" ? roster : settings;
+    state.pageSize = 10;
+    state.listPage = 1;
+    assert.equal(rowCount(render()), 10);
+    state.listPage = 7;
+    assert.equal(rowCount(render()), 5);
+    assert.match(render(), /第 7 \/ 7 页/);
     state.pageSize = 20;
     state.listPage = 1;
-    assert.equal(rowCount(settings()), 20);
+    assert.equal(rowCount(render()), 20);
     state.listPage = 4;
-    assert.equal(rowCount(settings()), 5);
+    assert.equal(rowCount(render()), 5);
     state.pageSize = 30;
     state.listPage = 2;
-    assert.equal(rowCount(settings()), 30);
+    assert.equal(rowCount(render()), 30);
     state.listPage = 3;
-    assert.equal(rowCount(settings()), 5);
+    assert.equal(rowCount(render()), 5);
   }
 });
 test("roster filters apply before slicing and empty results never leave a stale page", () => {
   setup();
   state.listPage = 4;
   state.query = "人员64";
-  const html = settings();
+  const html = roster();
   assert.equal(rowCount(html), 1);
   assert.equal(state.listPage, 1);
   assert.match(html, /人员64/);
   state.query = "不存在的人";
-  const empty = settings();
+  const empty = roster();
   assert.match(empty, /暂无匹配记录/);
   assert.match(empty, /0–0 条/);
 });
@@ -120,6 +128,11 @@ test("staff and ticket lists use the shared page size, while summaries retain al
   }));
   state.page = "tickets";
   assert.equal(rowCount(tickets()), 30);
+  state.pageSize = 10;
+  state.listPage = 2;
+  assert.equal(rowCount(tickets()), 10);
+  assert.match(tickets(), /11–20 条/);
+  assert.match(tickets(), /value="10" selected/);
 });
 
 test("viewer can open all plans while the analysis preview stays bounded", () => {

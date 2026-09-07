@@ -1,3 +1,4 @@
+import { pageSizes } from "../../shared/pagination.js";
 import { dispatchParameters } from "./dispatch-parameters.js";
 import { navs, modulePage, isKnownPage } from "./navigation.js";
 import { roster } from "./roster.js";
@@ -727,7 +728,7 @@ document.addEventListener("change", (e) => {
   if (input.dataset.pageSize) {
     const size = Number(input.value),
       scope = input.dataset.pageSize;
-    if (![20, 30].includes(size)) return;
+    if (!pageSizes.includes(size)) return;
     if (scope === "whitelist") {
       state.whitelistPageSize = size;
       state.extraPages.whitelist = 1;

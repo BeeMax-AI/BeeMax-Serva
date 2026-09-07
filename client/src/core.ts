@@ -1,5 +1,5 @@
 import { preserveConnections } from "./bootstrap-state.js";
-import { pageWindow } from "../../shared/pagination.js";
+import { pageWindow, pageSizes } from "../../shared/pagination.js";
 import type { Bootstrap, Metrics, Ticket } from "../../shared/domain.js";
 import { statuses } from "../../shared/domain.js";
 export const state: {
@@ -159,7 +159,7 @@ export function setPage(page: number, scope = "main") {
 export function pager(count: number, size = state.pageSize, scope = "main") {
   const p = pageWindow(count, currentPage(scope), size);
   setPage(p.page, scope);
-  return `<div class="connection-pagination" data-pagination="${esc(scope)}"><label class="page-size-control">每页<select data-page-size="${esc(scope)}" aria-label="每页记录数">${[20, 30].map((n) => `<option value="${n}" ${p.size === n ? "selected" : ""}>${n} 条</option>`).join("")}</select></label><span>共 ${count} 条 · ${count ? p.start + 1 : 0}–${p.end} 条 · 第 ${p.page} / ${p.pages} 页</span><div class="page-buttons"><button class="button" data-page-step="-1" data-page-scope="${esc(scope)}" ${p.page === 1 ? "disabled" : ""}>上一页</button><button class="button" data-page-step="1" data-page-scope="${esc(scope)}" ${p.page === p.pages ? "disabled" : ""}>下一页</button></div></div>`;
+  return `<div class="connection-pagination" data-pagination="${esc(scope)}"><label class="page-size-control">每页<select data-page-size="${esc(scope)}" aria-label="每页记录数">${pageSizes.map((n) => `<option value="${n}" ${p.size === n ? "selected" : ""}>${n} 条</option>`).join("")}</select></label><span>共 ${count} 条 · ${count ? p.start + 1 : 0}–${p.end} 条 · 第 ${p.page} / ${p.pages} 页</span><div class="page-buttons"><button class="button" data-page-step="-1" data-page-scope="${esc(scope)}" ${p.page === 1 ? "disabled" : ""}>上一页</button><button class="button" data-page-step="1" data-page-scope="${esc(scope)}" ${p.page === p.pages ? "disabled" : ""}>下一页</button></div></div>`;
 }
 export function slicePage<T>(rows: T[], size = state.pageSize, scope = "main") {
   const p = pageWindow(rows.length, currentPage(scope), size);
