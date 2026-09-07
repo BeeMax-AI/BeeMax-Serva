@@ -254,7 +254,7 @@ function login() {
 function renderShell() {
   const a = state.boot!.actor;
   document.querySelector("#app")!.innerHTML =
-    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号 / 白名单" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
+    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
 }
 function renderContent() {
   if (!state.boot) return;
@@ -387,7 +387,7 @@ function updateNavigation() {
   if (crumb)
     crumb.textContent =
       state.page === "agent"
-        ? "企微账号 / 白名单"
+        ? "企微账号"
         : navs.find((n) => n[0] === state.page)?.[2] || "运营总览";
 }
 function showLoadedPage() {
@@ -496,7 +496,7 @@ async function handleClick(e: MouseEvent) {
     if (b.dataset.whitelistKind)
       state.whitelistKind = b.dataset
         .whitelistKind as typeof state.whitelistKind;
-    state.listPage = 1;
+    state.extraPages.whitelist = 1;
     renderContent();
     document
       .querySelector<HTMLElement>(
@@ -523,9 +523,12 @@ async function handleClick(e: MouseEvent) {
   if (b.dataset.agent) {
     state.whitelistTab = "authorization";
     state.whitelistKind = "groups";
-    state.listPage = 1;
+    state.extraPages.whitelist = 1;
     state.agent = b.dataset.agent;
-    navigate("agent");
+    renderContent();
+    document
+      .querySelector("#account-whitelist")
+      ?.scrollIntoView({ block: "start" });
     return;
   }
   if (b.dataset.logs) {
@@ -650,12 +653,6 @@ async function handleClick(e: MouseEvent) {
     "roster-import": () => editRoster(true),
     "add-account": () => editAccount(),
     "refresh-connections": () => refreshConnections(),
-    "channel-access": () => {
-      state.agent = "";
-      state.whitelistTab = "access";
-      state.listPage = 1;
-      navigate("agent");
-    },
     "add-route": () => editRoute(),
     "add-person": () => editPerson(),
     parameters: editParameters,
@@ -727,11 +724,25 @@ document.addEventListener("change", (e) => {
     const size = Number(input.value),
       scope = input.dataset.pageSize;
     if (![20, 30].includes(size)) return;
-    state.pageSize = size;
-    state.listPage = 1;
-    state.extraPages = {};
+    if (scope === "whitelist") {
+      state.whitelistPageSize = size;
+      state.extraPages.whitelist = 1;
+    } else {
+      state.pageSize = size;
+      state.listPage = 1;
+      state.extraPages = { whitelist: state.extraPages.whitelist || 1 };
+    }
     renderContent();
     renderPaging(scope);
+    return;
+  }
+  if (input.id === "whitelist-account") {
+    state.agent = input.value;
+    state.extraPages.whitelist = 1;
+    renderContent();
+    document
+      .querySelector<HTMLElement>("#whitelist-account")
+      ?.focus({ preventScroll: true });
     return;
   }
   if (input.dataset.filter) {

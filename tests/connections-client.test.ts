@@ -181,7 +181,7 @@ test("migrated connection pages use independent records, paginate 20/30 and filt
 });
 
 test("whitelist navigation moves to accounts and preserves explicit channel scope", async () => {
-  const { whitelistPage } = await import("../client/src/whitelist.ts");
+  const { whitelistSection } = await import("../client/src/whitelist.ts");
   const { tabs } = await import("../client/src/settings.ts");
   state.boot = boot(1);
   state.boot.connections!.accounts = [
@@ -203,22 +203,74 @@ test("whitelist navigation moves to accounts and preserves explicit channel scop
   state.whitelistTab = "authorization";
   state.whitelistKind = "members";
   assert.ok(!tabs.some(([id]) => ["push", "access"].includes(id)));
-  let html = whitelistPage();
+  let html = whitelistSection();
   assert.match(html, /人员白名单/);
   assert.match(html, /&lt;用户&gt;/);
   assert.match(html, /data-kind="member"/);
   state.whitelistTab = "push";
-  html = whitelistPage();
+  html = whitelistSection();
   assert.match(html, /1 个群开启/);
   assert.match(html, /data-push-group="old" data-enabled="false"/);
   assert.match(html, /data-push-group="new" data-enabled="true"/);
   state.whitelistTab = "access";
   state.agent = "";
-  html = whitelistPage();
+  html = whitelistSection();
   assert.match(html, /生效范围：整个渠道/);
-  assert.match(html, /data-whitelist-tab="authorization"[^>]*disabled/);
+  assert.match(html, /data-whitelist-tab="authorization"/);
   state.agent = "a";
   state.whitelistTab = "authorization";
   state.boot.actor.role = "viewer";
-  assert.doesNotMatch(whitelistPage(), /id="whitelist-form"/);
+  assert.doesNotMatch(whitelistSection(), /id="whitelist-form"/);
+});
+
+test("embedded whitelist remains visible with no accounts and paginates independently", async () => {
+  const { accounts } = await import("../client/src/pages.ts");
+  state.boot = boot(1);
+  state.whitelistTab = "authorization";
+  state.whitelistKind = "groups";
+  state.account = "";
+  state.agent = "";
+  state.listPage = 1;
+  state.pageSize = 20;
+  state.extraPages = {};
+  state.whitelistPageSize = 20;
+  let html = accounts();
+  for (const label of ["白名单授权", "推送设置", "访问权限"])
+    assert.ok(html.includes(label));
+  assert.ok(
+    html.indexOf('id="account-whitelist"') >
+      html.indexOf('data-pagination="main"'),
+  );
+  const groups = Array.from({ length: 25 }, (_, i) => ({
+    id: `group-${i}`,
+    name: `群${i}`,
+    addedAt: "2026-09-06",
+  }));
+  state.boot.connections!.accounts = Array.from({ length: 25 }, (_, i) => ({
+    id: `account-${i}`,
+    name: `账号${i}`,
+    company: "测试",
+    login: "未登录",
+    status: "offline",
+    groups,
+  }));
+  state.agent = "account-0";
+  state.listPage = 2;
+  state.extraPages.whitelist = 1;
+  html = accounts();
+  assert.match(html, /data-agent="account-20"/);
+  assert.match(html, /data-whitelist-remove="group-0"/);
+  assert.doesNotMatch(html, /data-whitelist-remove="group-24"/);
+  assert.equal(state.listPage, 2);
+  state.extraPages.whitelist = 2;
+  html = accounts();
+  assert.match(html, /data-whitelist-remove="group-24"/);
+  assert.equal(state.listPage, 2);
+  state.whitelistPageSize = 30;
+  state.extraPages.whitelist = 1;
+  html = accounts();
+  assert.match(html, /data-whitelist-remove="group-24"/);
+  assert.equal(state.pageSize, 20);
+  assert.equal(state.listPage, 2);
+  assert.ok(html.includes("实例 ID：account-0"));
 });

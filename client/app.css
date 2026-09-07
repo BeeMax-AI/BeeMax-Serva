@@ -773,3 +773,10 @@ aside.panel {
 
 .whitelist-types { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px 20px; }
 .whitelist-id { overflow-wrap: anywhere; max-width: 300px; }
+
+.account-whitelist { margin-top: 32px; scroll-margin-top: 88px; }
+.account-whitelist > .config-title { padding-left: 0; padding-right: 0; }
+.whitelist-account { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.whitelist-account select { max-width: 280px; }
+
+.whitelist-scope { overflow-wrap: anywhere; margin: 0 0 16px; color: var(--muted); line-height: 1.8; }

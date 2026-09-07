@@ -94,7 +94,7 @@ const policies: Record<string, string> = {
   owner: "仅所有者",
   disabled: "禁用群访问",
 };
-export function accessContent() {
+export function accessContent(scope = "main", size = state.pageSize) {
   const data = w().channelAccess;
   if (!data)
     return `<div class="config-title"><div><h2>渠道访问权限</h2><p>${hasTool("get_whitelist") ? "权限读取暂时失败，请刷新后重试。" : "当前连接尚未提供渠道访问权限读取工具。"}</p></div></div>`;
@@ -118,11 +118,11 @@ export function accessContent() {
   ]);
   return `<div class="config-title"><div><h2>渠道访问权限</h2><p>控制谁可以与机器人交互；与主动推送群授权分别管理。</p></div></div>${data.map((c) => `<div class="config-row"><div><h3>${channels[c.channel]}</h3><p>私聊：${esc(policies[c.dmPolicy] || c.dmPolicy)} · 群聊：${esc(policies[c.groupPolicy] || c.groupPolicy)}</p></div><div><button class="button" data-access-policy="${c.channel}" ${canWrite("access.save") ? "" : "disabled"}>修改策略</button> <button class="button" data-access-add="${c.channel}" ${canWrite("access.save") ? "" : "disabled"}>添加私聊用户</button></div></div>`).join("")}<div class="note-band">修改后渠道服务会自动重启并生效。白名单条目仅在相应“仅白名单”策略下限制访问；当前工具不支持增删群条目。</div>${table(
     ["渠道", "类型", "名称 / 标识", "操作"],
-    slicePage(entries).map(
+    slicePage(entries, size, scope).map(
       (e) =>
         `<tr><td>${channels[e.channel]}</td><td>${e.kind}</td><td>${esc(e.name)}<small>${esc(e.id)}${e.mode ? " · " + esc(e.mode === "mention" ? "需 @ 机器人" : e.mode) : ""}</small></td><td>${e.removable ? `<button class="text-link" data-access-remove="${esc(e.id)}" data-channel="${e.channel}" ${canWrite("access.save") ? "" : "disabled"}>移除</button>` : "仅查看"}</td></tr>`,
     ),
-  )}${pager(entries.length)}`;
+  )}${pager(entries.length, size, scope)}`;
 }
 function accessPolicies(group: boolean, current: string) {
   const all = group

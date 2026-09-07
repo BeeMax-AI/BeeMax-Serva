@@ -9,6 +9,7 @@ export const state: {
   account: string;
   agent: string;
   whitelistTab: "authorization" | "push" | "access";
+  whitelistPageSize: number;
   whitelistKind: "groups" | "members";
   query: string;
   status: string;
@@ -30,6 +31,7 @@ export const state: {
   account: "",
   agent: "",
   whitelistTab: "authorization",
+  whitelistPageSize: 20,
   whitelistKind: "groups",
   query: "",
   status: "",

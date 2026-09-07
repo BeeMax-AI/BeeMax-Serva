@@ -1,3 +1,4 @@
+import { whitelistSection } from "./whitelist.js";
 import { connections } from "./connections.js";
 import { remoteActions } from "./mcp.js";
 import { statuses } from "../../shared/domain.js";
@@ -202,7 +203,6 @@ export function accounts() {
       "企微账号",
       "统一管理服务账号，让消息、Agent 与工单协同。",
       button("连接设置", "credentials") +
-        button("渠道访问权限", "channel-access") +
         button(`${icon("plus")}添加企微账号`, "add-account", true, !canWrite()),
     ) +
     rail([
@@ -222,10 +222,12 @@ export function accounts() {
             `<article class="account-row"><div class="account-identity"><img src="/assets/beemax-logo-mark.svg" alt=""><div><h3>${esc(a.name)}</h3><small>${esc(a.company)}</small>${tag(a.status === "online" ? "在线" : "待连接", a.status === "online")}</div></div><div class="account-fact"><small>登录账号</small><strong>${esc(a.login)}</strong><small>企微登录待接入</small></div><div class="account-fact"><small>白名单</small><strong>${a.groups.length} 个群 · ${a.members?.length || 0} 人</strong><button class="text-link" data-logs="${esc(a.id)}">查看消息日志 →</button></div><div class="connection-actions"><button class="button" data-agent="${esc(a.id)}">白名单 →</button><button class="text-link" data-edit-account="${esc(a.id)}" ${canWrite() ? "" : "disabled"}>管理实例</button></div></article>`,
         )
         .join("") || empty("暂无账号实例，点击「添加企微账号」开始配置")
-    }${pager(rows.length)}</section><div class="connection-note">实例与白名单配置已独立保存；登录及消息通道待接入。</div>`
+    }${pager(rows.length)}</section><div class="connection-note">实例与白名单配置已独立保存；登录及消息通道待接入。</div>` +
+    whitelistSection()
   );
 }
-export { whitelistPage as agent } from "./whitelist.js";
+// Preserve old #agent links while displaying the unified account page.
+export const agent = accounts;
 export const messageStatuses: Record<string, string> = {
   completed: "已完成",
   pending: "等待回调",
