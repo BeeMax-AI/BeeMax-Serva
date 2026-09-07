@@ -888,3 +888,32 @@ aside.panel {
 .trend-distribution-row > div:not(:first-child) { text-align: right; }
 @media(max-width:1100px) { .trend-detail-grid { grid-template-columns: minmax(0,1fr); } }
 @media(max-width:540px) { .trend-distribution { padding: 16px; } .trend-distribution-row { grid-template-columns: minmax(0,1fr) auto; } .record-comparison { grid-column: 1 / -1; text-align: left !important; } }
+
+.advice-followup { margin-top:24px; }
+.followup-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin:0 22px; padding:4px 0 20px; }
+.followup-counts>div { padding:0 24px; border-right:1px solid var(--line); }
+.followup-counts>div:first-child { padding-left:0; }
+.followup-counts>div:last-child { border:0; }
+.followup-counts span { color:var(--muted); font-size:12px; }
+.followup-counts strong { display:block; font-size:30px; font-weight:600; margin-top:8px; }
+.followup-counts small { font-size:11px; color:var(--muted); font-weight:400; margin-left:6px; }
+.followup-note { margin:0 22px 20px; font-size:11px; color:var(--muted); }
+.followup-list-heading { border-top:1px solid var(--line); padding:18px 22px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.followup-list-heading h3 { margin:0; font-size:14px; }
+.followup-list-heading span,.followup-completed { color:var(--muted); font-size:11px; }
+.followup-table { min-width:820px; table-layout:fixed; }
+.followup-table th:first-child { width:42%; }
+.followup-table td { vertical-align:top; }
+.followup-table td>strong { display:block; font-weight:500; overflow-wrap:anywhere; }
+.followup-table details { margin-top:8px; }
+.followup-table summary { cursor:pointer; color:var(--action); font-size:11px; }
+.followup-table details p { white-space:normal; overflow-wrap:anywhere; font-size:12px; line-height:1.8; }
+.followup-table .followup-due { display:block; color:var(--action); }
+@media(max-width:719px) {
+  .followup-counts { margin:0 18px; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 0; }
+  .followup-counts>div { padding:0 18px; }
+  .followup-counts>div:nth-child(odd) { padding-left:0; }
+  .followup-counts>div:nth-child(even) { border:0; }
+  .followup-note { margin:0 18px 18px; }
+  .followup-list-heading { padding:18px; flex-wrap:wrap; }
+}

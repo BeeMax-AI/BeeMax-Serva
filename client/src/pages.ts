@@ -1,3 +1,4 @@
+import { followupPanel } from "./advice-followup.js";
 import { trendDetailPanels } from "./trend-details.js";
 import { overviewDimensionPanels, dimensionDescription } from "./overview-dimensions.js";
 import { readDimension, matchesDimension } from "../../shared/overview-dimensions.js";
@@ -381,7 +382,7 @@ export function insights() {
       </div>`
           : empty("点击“立即分析”生成报告，或在“分析计划”中设置自动分析。")
       }
-    </section>`
+    </section>${r ? followupPanel(r) : ""}`
   );
 }
 
