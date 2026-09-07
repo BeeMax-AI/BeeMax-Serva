@@ -1,7 +1,7 @@
 export const navs = [
   ["insights", "spark", "AI智能分析"],
   ["overview", "overview", "运营总览"],
-  ["tickets", "ticket", "工单管理"],
+  ["trends", "ticket", "工单管理"],
   ["staff", "staff", "人员与负载"],
   ["accounts", "staff", "企微账号"],
   ["messages", "chat", "消息日志"],
@@ -13,7 +13,7 @@ export function modulePage(page: string) {
   return (
     (
       {
-        trends: "tickets",
+        tickets: "trends",
         "staff-roster": "staff",
         "staff-parameters": "staff",
         agent: "accounts",
@@ -27,11 +27,11 @@ export function isKnownPage(page: string) {
 }
 
 export function moduleTabs(page: string) {
-  const tickets = modulePage(page) === "tickets";
+  const tickets = modulePage(page) === "trends";
   const tabs = tickets
     ? [
-        ["tickets", "工单明细"],
         ["trends", "工单趋势"],
+        ["tickets", "工单明细"],
       ]
     : [
         ["staff", "人员负载"],
