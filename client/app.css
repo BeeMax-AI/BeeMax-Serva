@@ -795,3 +795,15 @@ aside.panel {
 
 .notification-options label:has(textarea) { display: block; }
 .notification-options textarea { display: block; width: 100%; margin-top: 8px; }
+.exclusion-editor { border: 0; padding: 0; margin: 20px 0 0; min-width: 0; }
+.exclusion-editor legend { font-weight: 600; margin-bottom: 12px; }
+.exclusion-editor .note-band p { margin: 4px 0 0; }
+.exclusion-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.exclusion-inputs input { width: 100%; min-width: 0; }
+.exclusion-list { max-height: 180px; overflow-y: auto; }
+.exclusion-person { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.exclusion-person span { min-width: 0; overflow-wrap: anywhere; }
+.exclusion-person small { display: block; color: var(--muted); }
+.exclusion-person button { flex-shrink: 0; }
+.exclusion-preview { overflow-wrap: anywhere; }
+@media (max-width: 540px) { .exclusion-inputs { grid-template-columns: 1fr; gap: 0; } }

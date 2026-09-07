@@ -15,7 +15,7 @@ import {
 export const notificationLevels: Record<number, [string, string]> = {
   1: ["L1 · 一线响应", "首先通知的一线处理人员"],
   2: ["L2 · 二线升级", "未接单时升级通知二线人员"],
-  3: ["L3 · 部门升级", "通知部门全体或指定人员"],
+  3: ["L3 · 部门升级", "通知部门全体，可排除指定人员"],
   4: ["L4 · 兜底通知", "最后一级通知的兜底负责人"],
 };
 export function notificationContent() {
@@ -34,7 +34,7 @@ export function notificationContent() {
       const mode = today ? t.effectiveMode : t.defaultMode,
         members = today ? t.effective : t.defaults;
       const editable = mode === "people";
-      return `<tr><td><strong>${notificationLevels[t.tier][0]}</strong><small>${notificationLevels[t.tier][1]}</small></td><td>${mode === "all" ? "<strong>部门全体（@所有人）</strong><small>可切换为指定人员</small>" : mode === "special" ? "特殊通知配置 · 请在源系统查看" : `<div class="notification-members">${members.map((p) => `<span class="notification-person">${esc(p.name)}<button class="text-link" data-notification-remove="${esc(p.userId)}" data-tier="${t.tier}" aria-label="从 L${t.tier} 移除 ${esc(p.name)}" ${canWrite("roster.member.remove") ? "" : "disabled"}>×</button></span>`).join("") || "<span>未配置通知人员</span>"}</div>`}</td><td>${tag(today ? (t.overridden ? "今日覆盖" : "沿用默认") : "默认名单")}${!today && t.overridden ? "<small>今日有单独覆盖</small>" : ""}</td><td>${t.tier === 3 && mode !== "special" ? `<button class="button" data-notification-mode="3" ${canWrite("roster.level.save") ? "" : "disabled"}>编辑通知方式</button> ` : ""}${editable ? `<button class="button" data-notification-add="${t.tier}" ${canWrite("roster.member.add") ? "" : "disabled"}>添加人员</button>` : t.tier === 3 && mode === "all" ? "" : "源系统管理"}</td></tr>`;
+      return `<tr><td><strong>${notificationLevels[t.tier][0]}</strong><small>${notificationLevels[t.tier][1]}</small></td><td>${mode === "all" ? "<strong>部门全体（@所有人）</strong><small>可指定人员或设置排除名单</small>" : mode === "special" ? "特殊通知配置 · 请在源系统查看" : `<div class="notification-members">${members.map((p) => `<span class="notification-person">${esc(p.name)}<button class="text-link" data-notification-remove="${esc(p.userId)}" data-tier="${t.tier}" aria-label="从 L${t.tier} 移除 ${esc(p.name)}" ${canWrite("roster.member.remove") ? "" : "disabled"}>×</button></span>`).join("") || "<span>未配置通知人员</span>"}</div>`}</td><td>${tag(today ? (t.overridden ? "今日覆盖" : "沿用默认") : "默认名单")}${!today && t.overridden ? "<small>今日有单独覆盖</small>" : ""}</td><td>${t.tier === 3 && mode !== "special" ? `<button class="button" data-notification-mode="3" ${canWrite("roster.level.save") ? "" : "disabled"}>编辑通知方式</button> ` : ""}${editable ? `<button class="button" data-notification-add="${t.tier}" ${canWrite("roster.member.add") ? "" : "disabled"}>添加人员</button>` : t.tier === 3 && mode === "all" ? "" : "源系统管理"}</td></tr>`;
     }),
   )}<div class="panel-footer">这里只调整升级通知名单，不移除企业成员或修改群成员关系。楼栋、时段及专员规则仍由远端执行。</div></section>`;
 }
@@ -132,13 +132,29 @@ export function editNotificationMode() {
     currentMode === "all"
       ? "部门全体（@所有人）"
       : current.map((p) => `${p.name}（${p.userId}）`).join("、") || "空名单";
+  const excluded = new Map<string, { userId: string; name: string }>();
+  const exclusionCandidates = known.filter((person) =>
+    w().people.some((p) => p.groupId === groupId && p.rosterUserId === person.userId),
+  );
   const dialog = modal(
     "编辑 L3 通知方式",
-    `<p>${esc(context)}</p><label>通知方式<select name="mode"><option value="all" ${currentMode === "all" ? "selected" : ""}>部门全体（@所有人）</option><option value="people" ${currentMode === "people" ? "selected" : ""}>指定人员</option></select></label><fieldset class="notification-options" ${currentMode === "all" ? "hidden disabled" : ""}><legend>指定通知人员（至少一位）</legend><label>新增人员（可选）<textarea name="newMembers" rows="3" maxlength="26000" placeholder="每行填写：企微人员ID,姓名"></textarea></label>${known.map((p) => `<label><input type="checkbox" name="member" value="${esc(p.userId)}" ${current.some((c) => c.userId === p.userId) ? "checked" : ""}><span>${esc(p.name)}<small>${esc(p.userId)}</small></span></label>`).join("") || "<p>暂无已知人员，可在上方填写新人员。</p>"}</fieldset><p>可勾选已知人员或填写新人员，合并为本级通知名单。</p>`,
+    `<p>${esc(context)}</p><label>通知方式<select name="mode"><option value="all" ${currentMode === "all" ? "selected" : ""}>部门全体（@所有人）</option><option value="people" ${currentMode === "people" ? "selected" : ""}>指定人员</option><option value="all_except">部门全体 · 排除指定人员（预览）</option></select></label><fieldset class="notification-options" ${currentMode === "all" ? "hidden disabled" : ""}><legend>指定通知人员（至少一位）</legend><label>新增人员（可选）<textarea name="newMembers" rows="3" maxlength="26000" placeholder="每行填写：企微人员ID,姓名"></textarea></label>${known.map((p) => `<label><input type="checkbox" name="member" value="${esc(p.userId)}" ${current.some((c) => c.userId === p.userId) ? "checked" : ""}><span>${esc(p.name)}<small>${esc(p.userId)}</small></span></label>`).join("") || "<p>暂无已知人员，可在上方填写新人员。</p>"}</fieldset><p data-people-help>可勾选已知人员或填写新人员，合并为本级通知名单。</p>${exclusionEditorContent(exclusionCandidates)}`,
     {
       label: "预览变更",
       run: (form) => {
         const mode = formData(form).mode;
+        if (mode === "all_except") {
+          const pendingId = formData(form).excludedId?.trim();
+          const pendingName = formData(form).excludedName?.trim();
+          if (pendingId || pendingName)
+            throw new Error("请先点击添加排除人员，或清空未添加的输入");
+          if (!excluded.size) throw new Error("请至少添加一位排除人员");
+          const preview = dialog.querySelector<HTMLElement>("[data-exclusion-preview]")!;
+          preview.hidden = false;
+          preview.innerHTML = `<h3>变更预览</h3><p>${esc(context)}</p><p>当前设置：${esc(before)}</p><p>拟设置：部门全体，排除 ${excluded.size} 人</p><p>${[...excluded.values()].map((p) => `${esc(p.name)}（${esc(p.userId)}）`).join("、")}</p><p><strong>尚未生效</strong> · 接口接通后才可保存，此次预览未改变实际通知。</p>`;
+          preview.scrollIntoView({ block: "nearest" });
+          return;
+        }
         const selected = new Set(
           new FormData(form).getAll("member").map(String),
         );
@@ -166,12 +182,53 @@ export function editNotificationMode() {
       },
     },
   );
-  dialog.onchange = (e) => {
-    if ((e.target as HTMLSelectElement).name !== "mode") return;
-    const fieldset = dialog.querySelector<HTMLFieldSetElement>("fieldset")!;
-    fieldset.hidden = fieldset.disabled =
-      (e.target as HTMLSelectElement).value === "all";
+  const exclusionPanel = dialog.querySelector<HTMLFieldSetElement>("[data-exclusions]")!;
+  const preview = dialog.querySelector<HTMLElement>("[data-exclusion-preview]")!;
+  const error = dialog.querySelector<HTMLElement>(".form-error")!;
+  const updateExcluded = () => {
+    preview.hidden = true;
+    error.textContent = "";
+    dialog.querySelector<HTMLElement>("[data-excluded-count]")!.textContent = `已排除 ${excluded.size} 人`;
+    dialog.querySelector<HTMLElement>("[data-excluded-list]")!.innerHTML =
+      [...excluded.values()].map((p) => `<div class="exclusion-person"><span>${esc(p.name)}<small>${esc(p.userId)}</small></span><button type="button" class="text-link" data-cancel-exclusion="${esc(p.userId)}" aria-label="取消排除 ${esc(p.name)}">取消排除</button></div>`).join("") || '<p class="muted">暂未排除任何人员</p>';
   };
+  dialog.querySelector("[data-excluded-list]")!.addEventListener("click", (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-cancel-exclusion]");
+    if (!button) return;
+    excluded.delete(button.dataset.cancelExclusion!);
+    updateExcluded();
+  });
+  dialog.querySelector("[data-add-exclusion]")!.addEventListener("click", () => {
+    try {
+      const id = dialog.querySelector<HTMLInputElement>('[name="excludedId"]')!;
+      const name = dialog.querySelector<HTMLInputElement>('[name="excludedName"]')!;
+      const person = parseNotificationPeople(`${id.value.trim()},${name.value.trim()}`)[0];
+      if (!person) throw new Error("请填写姓名和企微人员 ID");
+      if (excluded.has(person.userId)) throw new Error("该人员已在排除名单中");
+      if (excluded.size >= 200) throw new Error("最多排除 200 人");
+      excluded.set(person.userId, person);
+      id.value = name.value = "";
+      dialog.querySelector<HTMLSelectElement>('[name="excludedKnown"]')!.value = "";
+      updateExcluded();
+    } catch (e) { error.textContent = e instanceof Error ? e.message : "添加失败"; }
+  });
+  dialog.onchange = (e) => {
+    const target = e.target as HTMLSelectElement;
+    if (target.name === "excludedKnown") {
+      const person = exclusionCandidates.find((p) => p.userId === target.value);
+      dialog.querySelector<HTMLInputElement>('[name="excludedId"]')!.value = person?.userId || "";
+      dialog.querySelector<HTMLInputElement>('[name="excludedName"]')!.value = person?.name || "";
+    }
+    if (target.name !== "mode") return;
+    const fieldset = dialog.querySelector<HTMLFieldSetElement>(".notification-options")!;
+    fieldset.hidden = fieldset.disabled = target.value !== "people";
+    exclusionPanel.hidden = exclusionPanel.disabled = target.value !== "all_except";
+    dialog.querySelector<HTMLElement>("[data-people-help]")!.hidden = target.value !== "people";
+    preview.hidden = true;
+    error.textContent = "";
+  };
+  exclusionPanel.addEventListener("input", () => { preview.hidden = true; });
+
 }
 
 export function parseNotificationPeople(value: string) {
@@ -193,4 +250,18 @@ export function parseNotificationPeople(value: string) {
         throw new Error(`第 ${index + 1} 行请按“企微人员ID,姓名”填写`);
       return { userId: parts[0], name: parts[1] };
     });
+}
+
+function exclusionEditorContent(people: { userId: string; name: string }[]) {
+  return `<fieldset class="exclusion-editor" data-exclusions hidden disabled>
+    <legend>排除人员</legend>
+    <div class="note-band"><strong>界面预览 · 尚未生效</strong><p>仅编辑本次预览，关闭后不保留。接通接口后才可保存。</p></div>
+    <label>选择当前小组已知人员<select name="excludedKnown">${options(people.map((p) => ({ id: p.userId, name: `${p.name} · ${p.userId}` })), "", "选择人员，或手动填写")}</select></label>
+    <p class="muted">候选来自已知排班，暂非完整部门名单。</p>
+    <div class="exclusion-inputs">${field("姓名", "excludedName", "", "text", 'maxlength="100"')}${field("企微人员 ID", "excludedId", "", "text", 'maxlength="128"')}</div>
+    <button type="button" class="button" data-add-exclusion>添加排除人员</button>
+    <h3 data-excluded-count aria-live="polite">已排除 0 人</h3>
+    <div class="exclusion-list" data-excluded-list><p class="muted">暂未排除任何人员</p></div>
+    <p>排除后不 @ 此人，仍可看到群消息；不影响其他通知级别。</p>
+  </fieldset><section class="note-band exclusion-preview" data-exclusion-preview aria-live="polite" hidden></section>`;
 }
