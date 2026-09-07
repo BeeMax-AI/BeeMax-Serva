@@ -1,4 +1,4 @@
-import { pageSizes } from "../../shared/pagination.js";
+import { pageSizes, defaultPageSize } from "../../shared/pagination.js";
 import { notificationLevels } from "./notifications.js";
 import type { RemoteAnalytics } from "../../shared/domain.js";
 import {
@@ -272,7 +272,7 @@ export async function queryAnalytics(initial = "overview") {
     bucket = "day",
     days = "",
     page = 1,
-    size = 20;
+    size = defaultPageSize;
   const loading = modal(
       "全库统计",
       '<p role="status">正在读取业务数据库统计…</p>',
@@ -409,18 +409,18 @@ export function showScheduleRules() {
   let page = 1;
   function show() {
     const rows = w().scheduleRules || [],
-      pages = Math.max(1, Math.ceil(rows.length / 20));
+      pages = Math.max(1, Math.ceil(rows.length / defaultPageSize));
     const dialog = modal(
       "楼栋与时段排班",
       `<p>由远端排班规则读取。跨午夜时段按远端引擎执行；不推断人员实时在线状态。</p><div class="remote-table">${table(
         ["小组", "生效日期", "楼栋", "时段", "人员", "状态"],
         rows
-          .slice((page - 1) * 20, page * 20)
+          .slice((page - 1) * defaultPageSize, page * defaultPageSize)
           .map(
             (r) =>
               `<tr><td>${esc(w().groups.find((g) => g.id === r.groupId)?.name || r.groupId)}</td><td>${esc(r.date)}</td><td>${esc(r.building)}</td><td>${esc(r.from)}–${esc(r.to)}</td><td>${esc(r.names.join("、") || "未指定")}</td><td>${r.enabled ? (r.date === state.boot!.today || r.date === "长期默认" ? "适用今日" : "非今日规则") : "已停用"}</td></tr>`,
           ),
-      )}</div><div class="connection-pagination"><span>共 ${rows.length} 条 · 每页 20 条 · ${page}/${pages}</span><button type="button" class="button" data-schedule-prev ${page === 1 ? "disabled" : ""}>上一页</button><button type="button" class="button" data-schedule-next ${page === pages ? "disabled" : ""}>下一页</button></div>`,
+      )}</div><div class="connection-pagination"><span>共 ${rows.length} 条 · 每页 ${defaultPageSize} 条 · ${page}/${pages}</span><button type="button" class="button" data-schedule-prev ${page === 1 ? "disabled" : ""}>上一页</button><button type="button" class="button" data-schedule-next ${page === pages ? "disabled" : ""}>下一页</button></div>`,
     );
     dialog.classList.add("remote-analytics");
     dialog.querySelector<HTMLButtonElement>("[data-schedule-prev]")!.onclick =

@@ -1,5 +1,5 @@
 import { preserveConnections } from "./bootstrap-state.js";
-import { pageWindow, pageSizes } from "../../shared/pagination.js";
+import { pageWindow, pageSizes, defaultPageSize } from "../../shared/pagination.js";
 import type { Bootstrap, Metrics, Ticket } from "../../shared/domain.js";
 import { statuses } from "../../shared/domain.js";
 export const state: {
@@ -37,7 +37,7 @@ export const state: {
   notificationGroup: "",
   notificationScope: "today",
   whitelistTab: "authorization",
-  whitelistPageSize: 20,
+  whitelistPageSize: defaultPageSize,
   whitelistKind: "groups",
   query: "",
   status: "",
@@ -46,7 +46,7 @@ export const state: {
   direction: "",
   messageType: "",
   listPage: 1,
-  pageSize: 20,
+  pageSize: defaultPageSize,
   extraPages: {},
   period: "week",
   overviewDays: 7,
