@@ -644,6 +644,17 @@ async function handleClick(e: MouseEvent) {
     renderContent();
     renderAssistant();
   }
+  if (b.dataset.followupFilter) {
+    const filter = b.dataset.followupFilter;
+    const reportId = b.dataset.report;
+    if (reportId && ["all", "new", "following", "done", "due"].includes(filter)) {
+      state.adviceFilters[reportId] = filter as typeof state.adviceFilters[string];
+      setPage(1, "advice-followup-" + reportId);
+      renderContent();
+      document.querySelector<HTMLButtonElement>(`[data-followup-filter="${filter}"]`)?.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (b.dataset.advice) {
     const report = w().reports.find((r) => r.id === b.dataset.report)!,
       advice = report.advice.find((a) => a.id === b.dataset.advice)!;

@@ -1,3 +1,4 @@
+import type { AdviceFilter } from "../../shared/advice-followup.js";
 import { preserveConnections } from "./bootstrap-state.js";
 import { pageWindow, pageSizes, defaultPageSize } from "../../shared/pagination.js";
 import type { Bootstrap, Metrics, Ticket } from "../../shared/domain.js";
@@ -28,6 +29,7 @@ export const state: {
   trendView: "efficiency" | "structure" | "volume";
   metrics: Metrics | null;
   report: string;
+  adviceFilters: Record<string, AdviceFilter>;
   date: string;
 } = {
   boot: null,
@@ -55,6 +57,7 @@ export const state: {
   trendView: "efficiency",
   metrics: null,
   report: "",
+  adviceFilters: {},
   date: "",
 };
 export const w = () => state.boot!.workspace;

@@ -35,3 +35,16 @@ export function adviceFollowup(advice: Advice[], today: string) {
     due: rows.filter((a) => reviewDue(a, today)).length,
   };
 }
+
+export type AdviceFilter = "all" | "new" | "following" | "done" | "due";
+export function filterAdvice(
+  rows: Advice[],
+  filter: AdviceFilter,
+  today: string,
+) {
+  return rows.filter(
+    (a) =>
+      filter === "all" ||
+      (filter === "due" ? reviewDue(a, today) : a.status === filter),
+  );
+}

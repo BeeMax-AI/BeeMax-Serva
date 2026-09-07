@@ -353,23 +353,7 @@ export function insights() {
         r
           ? `<div class="report-content">
         ${reportFacts(r)}
-        <section class="report-conclusion"><h3>本期结论</h3><p class="report-summary">${esc(r.summary)}</p></section>
-        <section class="report-actions-section"><div class="report-section-heading"><h3>建议行动 <span>${r.advice.length}</span></h3><span>展开查看依据与跟进操作</span></div>
-          ${
-            r.advice
-              .slice(0, 3)
-              .map((a, i) => reportAdvice(r, a, i))
-              .join("") || empty("暂无新建议")
-          }
-          ${
-            r.advice.length > 3
-              ? `<details class="report-more" data-report-disclosure="more"><summary>查看其余 ${r.advice.length - 3} 条建议</summary>${r.advice
-                  .slice(3)
-                  .map((a, i) => reportAdvice(r, a, i + 3))
-                  .join("")}</details>`
-              : ""
-          }
-        </section>
+        ${reportHighlights(r)}
         ${r.findings?.length ? `<details class="report-disclosure" data-report-disclosure="findings"><summary><span>主要发现 <small>${r.findings.length} 项 · AI 推断</small></span><span class="disclosure-hint">展开</span></summary><div class="report-disclosure-body">${r.findings.map((f) => `<article class="report-finding"><h4>${esc(f.title)}</h4><p>${esc(f.detail)}</p><small>依据：${esc(f.basis)}</small></article>`).join("")}</div></details>` : ""}
         <details class="report-disclosure" data-report-disclosure="methods"><summary><span>数据范围与统计口径</span><span class="disclosure-hint">展开</span></summary><div class="report-disclosure-body"><p>${esc(r.coverage)}</p>${reportMeasures(
           r,
@@ -438,8 +422,16 @@ function reportFacts(r: Report) {
       : ""
   }`;
 }
-function reportAdvice(r: Report, a: Report["advice"][number], i: number) {
-  return `<details class="report-advice" data-report-disclosure="${esc(a.id)}"><summary><span class="advice-number">${String(i + 1).padStart(2, "0")}</span><strong>${esc(a.title)}</strong><span class="advice-labels">${a.priority ? tag({ high: "优先处理", medium: "建议跟进", low: "持续观察" }[a.priority], a.priority === "high") : ""}${a.status !== "new" ? tag({ following: "跟进中", done: "已完成" }[a.status]) : ""}</span></summary><div class="report-advice-body">${a.action !== a.title ? `<p><strong>建议行动</strong> ${esc(a.action)}</p>` : ""}<p><strong>数据依据</strong> ${esc(a.evidence)}</p>${a.ownerId ? `<p>负责人：${esc(personName(a.ownerId))} · 复盘：${esc(a.reviewAt)}</p>` : ""}<div class="report-advice-actions">${tag({ new: "待评估", following: "跟进中", done: "已完成" }[a.status])}<button class="button" data-advice="${esc(a.id)}" data-report="${esc(r.id)}" ${canWrite() ? "" : "disabled"}>${a.status === "following" ? "完成跟进" : "安排跟进"}</button><a class="text-link" href="#tickets">查看工单 →</a></div></div></details>`;
+function reportHighlights(r: Report) {
+  const excerpt = (value: string) => {
+    const text = value.trim();
+    const first = text.split(/[。！？\n]/).find(part => part.trim()) || text;
+    return first.length > 160 ? first.slice(0, 160) + "…" : first;
+  };
+  const action = [...r.advice].filter(a => a.status !== "done")
+    .sort((a, b) => ({high: 0, medium: 1, low: 2}[a.priority || "low"] - {high: 0, medium: 1, low: 2}[b.priority || "low"]))[0];
+  const finding = r.findings?.[0];
+  return `<section class="report-highlights" aria-label="本期重点"><div><span>本期表现 · 原文摘录</span><p>${esc(excerpt(r.summary) || "暂无本期结论")}</p></div><div><span>主要发现 · AI 推断</span><p>${esc(finding ? excerpt(finding.title) : "本报告未提供单独的发现")}</p></div><div><span>优先行动</span><p>${esc(action ? excerpt(action.title) : "暂无待跟进建议")}</p></div></section><details class="report-disclosure" data-report-disclosure="full-summary"><summary><span>完整分析结论</span><span class="disclosure-hint">展开</span></summary><div class="report-disclosure-body"><p class="report-summary">${esc(r.summary)}</p></div></details>`;
 }
 function analysisTasks() {
   const tasks = state.boot?.analysisTasks || [];
