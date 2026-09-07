@@ -150,5 +150,10 @@ export function trendDetailPanels() {
   );
   const datetime = (n: number) =>
     new Date(n + 28800000).toISOString().slice(0, 16).replace("T", " ");
-  return `<section class="trend-details" aria-label="工单结构与效率趋势"><details class="trend-range-note" data-trend-disclosure="range"><summary>统计范围与上期对比</summary><p>基于已同步工单，UTC+8。当前 ${datetime(data.from)} 至 ${datetime(data.at)}；上期 ${datetime(data.previousFrom)} 至 ${datetime(data.previousAt)}。当天尚未结束，对比使用上期相同进度。上期未记录时不计算涨幅；空白日期不代表实际业务为零。时长统计排除缺失、逆序及未来时间。</p></details><div class="trend-detail-grid">${distribution(data, "type")}${distribution(data, "group_created")}${efficiencyPanel(data, "response")}${efficiencyPanel(data, "process")}${netPanel(data)}${groupPanel(data)}</div></section>`;
+  const views = [["efficiency", "服务效率"], ["structure", "工单结构"], ["volume", "小组与增减"]];
+  return `<section class="trend-details" aria-label="工单结构与效率趋势"><div class="trend-section-heading"><div><h2>深入分析</h2><p>同一统计周期，按关注的问题切换查看。</p></div><div class="segmented trend-view-switch" role="group" aria-label="分析维度">${views.map(([id, label]) => `<button type="button" data-trend-view="${id}" aria-pressed="${state.trendView === id}" aria-controls="trend-view-${id}" class="${state.trendView === id ? "active" : ""}">${label}</button>`).join("")}</div></div>
+  <div id="trend-view-efficiency" class="trend-detail-grid" role="region" aria-label="服务效率" ${state.trendView !== "efficiency" ? "hidden" : ""}>${efficiencyPanel(data, "response")}${efficiencyPanel(data, "process")}</div>
+  <div id="trend-view-structure" class="trend-detail-grid" role="region" aria-label="工单结构" ${state.trendView !== "structure" ? "hidden" : ""}>${distribution(data, "type")}${distribution(data, "group_created")}</div>
+  <div id="trend-view-volume" class="trend-detail-grid" role="region" aria-label="小组与增减" ${state.trendView !== "volume" ? "hidden" : ""}>${groupPanel(data)}${netPanel(data)}</div>
+  <details class="trend-range-note" data-trend-disclosure="range"><summary>统计范围与上期对比</summary><p>基于已同步工单，UTC+8。当前 ${datetime(data.from)} 至 ${datetime(data.at)}；上期 ${datetime(data.previousFrom)} 至 ${datetime(data.previousAt)}。当天尚未结束，对比使用上期相同进度。上期未记录时不计算涨幅；空白日期不代表实际业务为零。时长统计排除缺失、逆序及未来时间。</p></details></section>`;
 }

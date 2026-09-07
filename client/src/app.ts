@@ -492,6 +492,15 @@ async function handleClick(e: MouseEvent) {
     document.querySelector<HTMLElement>(`[data-overview-days="${state.overviewDays}"]`)?.focus({ preventScroll: true });
     return;
   }
+  if (b.dataset.trendView) {
+    const view = b.dataset.trendView;
+    if (view === "efficiency" || view === "structure" || view === "volume") {
+      state.trendView = view;
+      renderContent();
+      document.querySelector<HTMLButtonElement>(`[data-trend-view="${view}"]`)?.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (b.dataset.period) {
     state.period = b.dataset.period;
     for (const key of Object.keys(state.extraPages)) if (key.startsWith("trend-")) state.extraPages[key] = 1;

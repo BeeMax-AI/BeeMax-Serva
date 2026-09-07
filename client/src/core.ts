@@ -25,6 +25,7 @@ export const state: {
   period: string;
   overviewDays: 7 | 30;
   trendGroups: string[] | null;
+  trendView: "efficiency" | "structure" | "volume";
   metrics: Metrics | null;
   report: string;
   date: string;
@@ -51,6 +52,7 @@ export const state: {
   period: "week",
   overviewDays: 7,
   trendGroups: null,
+  trendView: "efficiency",
   metrics: null,
   report: "",
   date: "",
