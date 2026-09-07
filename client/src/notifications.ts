@@ -15,7 +15,7 @@ import {
 export const notificationLevels: Record<number, [string, string]> = {
   1: ["L1 · 一线响应", "首先通知的一线处理人员"],
   2: ["L2 · 二线升级", "未接单时升级通知二线人员"],
-  3: ["L3 · 部门升级", "扩大通知范围；当前可配置为 @所有人"],
+  3: ["L3 · 部门升级", "通知部门全体或指定人员"],
   4: ["L4 · 兜底通知", "最后一级通知的兜底负责人"],
 };
 export function notificationContent() {
@@ -34,7 +34,7 @@ export function notificationContent() {
       const mode = today ? t.effectiveMode : t.defaultMode,
         members = today ? t.effective : t.defaults;
       const editable = mode === "people";
-      return `<tr><td><strong>${notificationLevels[t.tier][0]}</strong><small>${notificationLevels[t.tier][1]}</small></td><td>${mode === "all" ? "<strong>部门全体（@所有人）</strong><small>广播规则，不作为个人增删</small>" : mode === "special" ? "特殊通知配置 · 请在源系统查看" : `<div class="notification-members">${members.map((p) => `<span class="notification-person">${esc(p.name)}<button class="text-link" data-notification-remove="${esc(p.userId)}" data-tier="${t.tier}" aria-label="从 L${t.tier} 移除 ${esc(p.name)}" ${canWrite("roster.member.remove") ? "" : "disabled"}>×</button></span>`).join("") || "<span>未配置通知人员</span>"}</div>`}</td><td>${tag(today ? (t.overridden ? "今日覆盖" : "沿用默认") : "默认名单")}${!today && t.overridden ? "<small>今日有单独覆盖</small>" : ""}</td><td>${editable ? `<button class="button" data-notification-add="${t.tier}" ${canWrite("roster.member.add") ? "" : "disabled"}>添加人员</button>` : "源系统管理"}</td></tr>`;
+      return `<tr><td><strong>${notificationLevels[t.tier][0]}</strong><small>${notificationLevels[t.tier][1]}</small></td><td>${mode === "all" ? "<strong>部门全体（@所有人）</strong><small>可切换为指定人员</small>" : mode === "special" ? "特殊通知配置 · 请在源系统查看" : `<div class="notification-members">${members.map((p) => `<span class="notification-person">${esc(p.name)}<button class="text-link" data-notification-remove="${esc(p.userId)}" data-tier="${t.tier}" aria-label="从 L${t.tier} 移除 ${esc(p.name)}" ${canWrite("roster.member.remove") ? "" : "disabled"}>×</button></span>`).join("") || "<span>未配置通知人员</span>"}</div>`}</td><td>${tag(today ? (t.overridden ? "今日覆盖" : "沿用默认") : "默认名单")}${!today && t.overridden ? "<small>今日有单独覆盖</small>" : ""}</td><td>${t.tier === 3 && mode !== "special" ? `<button class="button" data-notification-mode="3" ${canWrite("roster.level.save") ? "" : "disabled"}>编辑通知方式</button> ` : ""}${editable ? `<button class="button" data-notification-add="${t.tier}" ${canWrite("roster.member.add") ? "" : "disabled"}>添加人员</button>` : t.tier === 3 && mode === "all" ? "" : "源系统管理"}</td></tr>`;
     }),
   )}<div class="panel-footer">这里只调整升级通知名单，不移除企业成员或修改群成员关系。楼栋、时段及专员规则仍由远端执行。</div></section>`;
 }
@@ -102,4 +102,95 @@ export function editNotificationMember(tier: number, userId?: string) {
     dialog.querySelector<HTMLInputElement>('[name="userId"]')!.value =
       p?.rosterUserId || "";
   };
+}
+
+export function editNotificationMode() {
+  const groupId = state.notificationGroup,
+    scope = state.notificationScope,
+    date = state.boot!.today;
+  const row = w().notificationTiers?.find(
+    (t) => t.groupId === groupId && t.tier === 3,
+  );
+  if (!row) return;
+  const currentMode = scope === "today" ? row.effectiveMode : row.defaultMode;
+  if (currentMode === "special") return;
+  const current = scope === "today" ? row.effective : row.defaults;
+  const known = [
+    ...new Map(
+      [
+        ...w()
+          .people.filter(
+            (p) => p.rosterUserId && !p.rosterUserId.startsWith("@"),
+          )
+          .map((p) => ({ userId: p.rosterUserId!, name: p.name })),
+        ...current,
+      ].map((p) => [p.userId, p]),
+    ).values(),
+  ];
+  const context = `${w().groups.find((g) => g.id === groupId)?.name} · L3 · ${scope === "today" ? "仅 " + date : "默认持续生效（保留今日覆盖）"}`;
+  const before =
+    currentMode === "all"
+      ? "部门全体（@所有人）"
+      : current.map((p) => `${p.name}（${p.userId}）`).join("、") || "空名单";
+  const dialog = modal(
+    "编辑 L3 通知方式",
+    `<p>${esc(context)}</p><label>通知方式<select name="mode"><option value="all" ${currentMode === "all" ? "selected" : ""}>部门全体（@所有人）</option><option value="people" ${currentMode === "people" ? "selected" : ""}>指定人员</option></select></label><fieldset class="notification-options" ${currentMode === "all" ? "hidden disabled" : ""}><legend>指定通知人员（至少一位）</legend><label>新增人员（可选）<textarea name="newMembers" rows="3" maxlength="26000" placeholder="每行填写：企微人员ID,姓名"></textarea></label>${known.map((p) => `<label><input type="checkbox" name="member" value="${esc(p.userId)}" ${current.some((c) => c.userId === p.userId) ? "checked" : ""}><span>${esc(p.name)}<small>${esc(p.userId)}</small></span></label>`).join("") || "<p>暂无已知人员，可在上方填写新人员。</p>"}</fieldset><p>可勾选已知人员或填写新人员，合并为本级通知名单。</p>`,
+    {
+      label: "预览变更",
+      run: (form) => {
+        const mode = formData(form).mode;
+        const selected = new Set(
+          new FormData(form).getAll("member").map(String),
+        );
+        const members =
+          mode === "people"
+            ? [
+                ...known.filter((p) => selected.has(p.userId)),
+                ...parseNotificationPeople(formData(form).newMembers || ""),
+              ]
+            : [];
+        if (new Set(members.map((p) => p.userId)).size !== members.length)
+          throw new Error("通知人员 ID 重复，请核对勾选和新增名单");
+        if (mode === "people" && !members.length)
+          throw new Error("请至少选择一位通知人员");
+        const after =
+          mode === "all"
+            ? "部门全体（@所有人）"
+            : members.map((p) => `${p.name}（${p.userId}）`).join("、");
+        confirmCommand(
+          "确认 L3 通知方式变更",
+          `${context}。原设置：${before}。新设置：${after}。保存将替换当前范围的 L3 名单，其他级别不变。`,
+          "roster.level.save",
+          { groupId, scope, date, tier: 3, mode, members },
+        );
+      },
+    },
+  );
+  dialog.onchange = (e) => {
+    if ((e.target as HTMLSelectElement).name !== "mode") return;
+    const fieldset = dialog.querySelector<HTMLFieldSetElement>("fieldset")!;
+    fieldset.hidden = fieldset.disabled =
+      (e.target as HTMLSelectElement).value === "all";
+  };
+}
+
+export function parseNotificationPeople(value: string) {
+  if (!value.trim()) return [];
+  return value
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .map((line, index) => {
+      const parts = line.split(/[,，]/).map((part) => part.trim());
+      if (
+        parts.length !== 2 ||
+        !parts[0] ||
+        !parts[1] ||
+        parts[0].startsWith("@") ||
+        parts[0].length > 128 ||
+        parts[1].length > 100
+      )
+        throw new Error(`第 ${index + 1} 行请按“企微人员ID,姓名”填写`);
+      return { userId: parts[0], name: parts[1] };
+    });
 }

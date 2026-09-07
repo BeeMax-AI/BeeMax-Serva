@@ -1,6 +1,7 @@
 import {
   notificationTiers,
   changeNotificationMember,
+  changeNotificationMode,
 } from "./roster-notifications.ts";
 import { qiweAudit } from "./qiwe.ts";
 import { normalizeAnalytics, normalizeAccess } from "./mcp-data.ts";
@@ -375,6 +376,7 @@ export class McpProvider extends LocalProvider {
           "route.delete.subject": "clear_subject_rule",
           "roster.person.save": "set_roster",
           "roster.member.add": "set_roster",
+          "roster.level.save": "set_roster",
           "roster.member.remove": "set_roster",
           "roster.today": "set_on_duty_today",
           "roster.import": "ingest_roster_text",
@@ -676,7 +678,14 @@ export class McpProvider extends LocalProvider {
           "请选择有效小组",
         );
         args = { by: actor.name + " (" + actor.id + ")" };
-        if (
+        if (c.type === "roster.level.save") {
+          tool = "set_roster";
+          args.roster = changeNotificationMode(
+            this.rosterSnapshot,
+            c.data,
+            businessDate(),
+          );
+        } else if (
           c.type === "roster.member.add" ||
           c.type === "roster.member.remove"
         ) {
@@ -865,9 +874,12 @@ export class McpProvider extends LocalProvider {
         target: String(c.data.id || c.data.groupId || c.data.channel || ""),
         detail: local
           ? "工作台记录已保存"
-          : c.type === "roster.member.add" || c.type === "roster.member.remove"
-            ? `${c.data.scope === "today" ? c.data.date : "默认名单"} · L${c.data.tier} · ${c.type.endsWith("add") ? "添加" : "移除"}通知人 ${c.data.userId}；MCP 已返回，请刷新核对`
-            : `MCP ${tool} 已返回；请刷新核对业务状态`,
+          : c.type === "roster.level.save"
+            ? `${c.data.scope === "today" ? c.data.date : "默认名单"} · L3 通知方式 → ${c.data.mode === "all" ? "@所有人" : "指定人员"}；MCP 已返回，请刷新核对`
+            : c.type === "roster.member.add" ||
+                c.type === "roster.member.remove"
+              ? `${c.data.scope === "today" ? c.data.date : "默认名单"} · L${c.data.tier} · ${c.type.endsWith("add") ? "添加" : "移除"}通知人 ${c.data.userId}；MCP 已返回，请刷新核对`
+              : `MCP ${tool} 已返回；请刷新核对业务状态`,
       });
       this.saveDashboard(actor, metadata);
       this.cache = undefined;

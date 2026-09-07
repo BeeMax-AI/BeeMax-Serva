@@ -67,6 +67,7 @@ const auditNames: Record<string, string> = {
   "route.delete": "删除路由",
   "person.save": "更新人员",
   "roster.person.save": "调整默认档位",
+  "roster.level.save": "调整 L3 通知方式",
   "roster.member.add": "添加升级通知人",
   "roster.member.remove": "移除升级通知人",
   "roster.today": "设置今日当班",

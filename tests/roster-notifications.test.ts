@@ -176,3 +176,78 @@ test("malformed group and date containers cannot produce a silent no-op write", 
     /结构异常/,
   );
 });
+
+test("L3 broadcast can switch to people for today, then back without changing defaults", async () => {
+  const { changeNotificationMode } =
+    await import("../server/src/roster-notifications.ts");
+  const before = snapshot();
+  const data = {
+    scope: "today",
+    date: today,
+    groupId: "group",
+    tier: 3,
+    mode: "people",
+    members: [{ userId: "three", name: "通知人" }],
+  };
+  const after = changeNotificationMode(before, data, today);
+  assert.equal(after.default.group.l3, "@ALL");
+  assert.deepEqual(after.byDate[today].group.l3, [
+    { userid: "three", name: "通知人" },
+  ]);
+  assert.deepEqual(after.specialists, before.specialists);
+  assert.deepEqual(after.byDate[today].group.l2, before.byDate[today].group.l2);
+  const broadcast = changeNotificationMode(
+    after,
+    { ...data, mode: "all", members: [] },
+    today,
+  );
+  assert.equal(broadcast.byDate[today].group.l3, "@ALL");
+  assert.deepEqual(before, snapshot());
+});
+test("L3 mode rejects malformed, broadcast-person, duplicate and empty selections and preserves retained metadata", async () => {
+  const { changeNotificationMode } =
+    await import("../server/src/roster-notifications.ts");
+  const data = {
+    scope: "default",
+    groupId: "group",
+    tier: 3,
+    mode: "people",
+    members: [{ userId: "three", name: "通知人" }],
+  };
+  for (const patch of [
+    { tier: 1 },
+    { mode: "other" },
+    { members: [] },
+    { members: [null] },
+    { members: [{ userId: "@ALL", name: "广播" }] },
+    { members: [...data.members, ...data.members] },
+    { scope: "today", date: "2026-09-06" },
+    { mode: "all" },
+  ])
+    assert.throws(() =>
+      changeNotificationMode(snapshot(), { ...data, ...patch }, today),
+    );
+  assert.throws(
+    () => changeNotificationMode({ default: { group: [] } }, data, today),
+    /结构异常/,
+  );
+  const before: any = snapshot();
+  before.default.group.l3 = [
+    { userid: "three", name: "通知人", extra: "retain" },
+  ];
+  const after = changeNotificationMode(before, data, today);
+  assert.equal(after.default.group.l3[0].extra, "retain");
+  assert.deepEqual(after.byDate, before.byDate);
+});
+
+test("L3 manual recipients accept Chinese separators and reject malformed lines", async () => {
+  const { parseNotificationPeople } =
+    await import("../client/src/notifications.ts");
+  assert.deepEqual(parseNotificationPeople("new-id,新人\nother-id，另一位"), [
+    { userId: "new-id", name: "新人" },
+    { userId: "other-id", name: "另一位" },
+  ]);
+  assert.deepEqual(parseNotificationPeople("  "), []);
+  assert.throws(() => parseNotificationPeople("@ALL,全体"), /第 1 行/);
+  assert.throws(() => parseNotificationPeople("missing-name"), /第 1 行/);
+});

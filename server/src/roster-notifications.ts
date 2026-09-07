@@ -63,11 +63,9 @@ export function notificationTiers(
   );
 }
 
-/** Edit one notification tier, preserving raw person properties and all unrelated roster sections. */
-export function changeNotificationMember(
+function editableTier(
   snapshot: any,
   data: Record<string, unknown>,
-  action: "add" | "remove",
   today: string,
 ) {
   requireValue(
@@ -83,11 +81,6 @@ export function changeNotificationMember(
   const groupId = text(data.groupId, "小组", 128),
     tier = number(data.tier, "通知级别", 1, 4),
     key = "l" + tier;
-  const userId = text(data.userId, "人员 ID", 128);
-  requireValue(
-    userId !== "@ALL" && !userId.startsWith("@"),
-    "广播对象不能作为个人添加或移除",
-  );
   const valid = containerValidity(snapshot, groupId, today);
   requireValue(
     valid.defaults && (data.scope !== "today" || valid.date),
@@ -101,6 +94,37 @@ export function changeNotificationMember(
     data.scope === "today" && Object.hasOwn(override, key)
       ? override[key]
       : defaultGroup[key];
+  return { roster, groupId, key, source };
+}
+function saveTier(
+  target: ReturnType<typeof editableTier>,
+  scope: unknown,
+  today: string,
+  updated: unknown,
+) {
+  const { roster, groupId, key } = target;
+  if (scope === "today") {
+    roster.byDate ||= {};
+    roster.byDate[today] ||= {};
+    roster.byDate[today][groupId] ||= {};
+    roster.byDate[today][groupId][key] = updated;
+  } else {
+    roster.default[groupId] ||= {};
+    roster.default[groupId][key] = updated;
+  }
+  return roster;
+}
+/** Edit one notification tier without altering unrelated roster sections. */
+export function changeNotificationMember(
+  snapshot: any,
+  data: Record<string, unknown>,
+  action: "add" | "remove",
+  today: string,
+) {
+  const target = editableTier(snapshot, data, today),
+    { source } = target;
+  const userId = text(data.userId, "人员 ID", 128);
+  requireValue(!userId.startsWith("@"), "广播对象不能作为个人添加或移除");
   requireValue(
     mode(source) === "people",
     "该级别使用 @所有人或特殊配置，请在源系统调整",
@@ -118,14 +142,43 @@ export function changeNotificationMember(
     action === "remove"
       ? members.filter((p: any) => p.userid !== userId)
       : members;
-  if (data.scope === "today") {
-    roster.byDate ||= {};
-    roster.byDate[today] ||= {};
-    roster.byDate[today][groupId] ||= {};
-    roster.byDate[today][groupId][key] = updated;
-  } else {
-    roster.default[groupId] ||= {};
-    roster.default[groupId][key] = updated;
+  return saveTier(target, data.scope, today, updated);
+}
+
+/** L3 can explicitly switch between department broadcast and selected people. */
+export function changeNotificationMode(
+  snapshot: any,
+  data: Record<string, unknown>,
+  today: string,
+) {
+  requireValue(data.tier === 3, "仅 L3 支持通知方式切换");
+  requireValue(data.mode === "all" || data.mode === "people", "通知方式无效");
+  const target = editableTier(snapshot, data, today);
+  requireValue(mode(target.source) !== "special", "特殊通知配置请在源系统调整");
+  requireValue(Array.isArray(data.members), "通知名单无效");
+  if (data.mode === "all") {
+    requireValue(data.members.length === 0, "全体通知不能同时指定人员");
+    return saveTier(target, data.scope, today, "@ALL");
   }
-  return roster;
+  requireValue(
+    data.members.length > 0 && data.members.length <= 200,
+    "请选择 1–200 位通知人员",
+  );
+  const seen = new Set<string>();
+  const members = data.members.map((item: unknown) => {
+    requireValue(record(item), "人员信息无效");
+    const person = item as Record<string, unknown>;
+    const userId = text(person.userId, "人员 ID", 128),
+      name = text(person.name, "姓名", 100);
+    requireValue(
+      !userId.startsWith("@") && !seen.has(userId),
+      "人员 ID 重复或包含广播对象",
+    );
+    seen.add(userId);
+    const existing = Array.isArray(target.source)
+      ? target.source.find((p: any) => p.userid === userId)
+      : undefined;
+    return { ...existing, userid: userId, name };
+  });
+  return saveTier(target, data.scope, today, members);
 }

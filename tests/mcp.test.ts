@@ -852,3 +852,38 @@ test("notification member changes use set_roster with scoped date changes and re
     1,
   );
 });
+
+test("L3 mode change maps to set_roster with broadcast encoding and role guards", async (t) => {
+  const f = await fixture(t, false, true),
+    w = await f.provider.read(actor);
+  const command = {
+    type: "roster.level.save",
+    data: {
+      scope: "default",
+      groupId: "service",
+      tier: 3,
+      mode: "all",
+      members: [],
+    },
+    expectedRevision: w.revision,
+    requestId: "l3-mode",
+  };
+  assert.ok(w.integration?.commands.includes("roster.level.save"));
+  await assert.rejects(
+    f.provider.command({ ...actor, role: "viewer" }, command),
+    /查看权限/,
+  );
+  await f.provider.command(actor, command);
+  const write = f.calls.find((c) => c.params?.name === "set_roster");
+  assert.equal(write.params.arguments.roster.default.service.l3, "@ALL");
+  assert.deepEqual(
+    write.params.arguments.roster.default.service.l1,
+    f.rosterDoc.default.service.l1,
+  );
+  assert.deepEqual(write.params.arguments.roster.byDate, f.rosterDoc.byDate);
+  await f.provider.command(actor, command);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_roster").length,
+    1,
+  );
+});

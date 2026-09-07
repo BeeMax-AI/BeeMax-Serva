@@ -1,4 +1,7 @@
-import { editNotificationMember } from "./notifications.js";
+import {
+  editNotificationMember,
+  editNotificationMode,
+} from "./notifications.js";
 import { toggleQiweSecret, resetQiweSecrets } from "./qiwe.js";
 import { preserveConnections } from "./bootstrap-state.js";
 import {
@@ -556,6 +559,7 @@ async function handleClick(e: MouseEvent) {
       },
     );
   if (b.dataset.person) editPerson(b.dataset.person);
+  if (b.dataset.notificationMode) editNotificationMode();
   if (b.dataset.notificationAdd)
     editNotificationMember(Number(b.dataset.notificationAdd));
   if (b.dataset.notificationRemove)
