@@ -25,7 +25,7 @@ export function renderBrief(data: BriefData, root: string): Promise<Buffer> {
       autoFirstPage: false,
       bufferPages: true,
       info: {
-        Title: `${data.tenant} - 运营简报`,
+        Title: "运营简报",
         Author: "BeeMax Serva",
         Subject: `${data.start} - ${data.end}`,
       },
@@ -96,7 +96,7 @@ export function renderBrief(data: BriefData, root: string): Promise<Buffer> {
         text(title, LEFT, 103, WIDTH, 27, C.navy, 45);
         text(sub, LEFT, 150, WIDTH, 10, C.muted, 28);
         line(LEFT, 785, WIDTH);
-        text(`${data.tenant} · 内部运营资料`, LEFT, 798, 390, 8, C.muted, 18);
+        text("内部运营资料", LEFT, 798, 390, 8, C.muted, 18);
         text(
           `${String(page).padStart(2, "0")} / 02`,
           508,
@@ -108,7 +108,7 @@ export function renderBrief(data: BriefData, root: string): Promise<Buffer> {
           true,
         );
       };
-      frame(1, "运营简报", `${data.tenant}  |  ${data.start} - ${data.end}`);
+      frame(1, "运营简报", `${data.start} - ${data.end}`);
       text(`生成于 ${stamp} · UTC+8`, LEFT, 181, WIDTH, 8, C.muted, 18);
       const kpis = [
         ["期间新建", String(data.created), "按创建日期"],

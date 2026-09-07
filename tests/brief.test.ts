@@ -130,6 +130,12 @@ test("PDF endpoint requires login, validates dates and scopes exports to the act
   const other = store.read("other");
   other.tenant.name = "ONLY-OTHER-TENANT";
   store.save(other);
+  const reads: string[] = [];
+  const readWorkspace = store.read.bind(store);
+  store.read = (tenant) => {
+    reads.push(tenant);
+    return readWorkspace(tenant);
+  };
   const app = createApp(store, process.cwd(), "local");
   await new Promise<void>((r) => app.server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
@@ -165,7 +171,10 @@ test("PDF endpoint requires login, validates dates and scopes exports to the act
       405,
     );
     for (const tenant of ["demo", "other"]) {
+      reads.length = 0;
       const response = await get("?start=2020-01-01&end=2020-01-31", tenant);
+      assert.ok(reads.length > 0);
+      assert.ok(reads.every((id) => id === tenant));
       assert.equal(response.status, 200);
       assert.equal(response.headers.get("content-type"), "application/pdf");
       assert.equal(response.headers.get("cache-control"), "no-store");
@@ -175,16 +184,9 @@ test("PDF endpoint requires login, validates dates and scopes exports to the act
       const raw = pdf.toString("latin1");
       const title = (name: string) =>
         Buffer.from(name, "utf16le").swap16().toString("latin1");
-      assert.ok(
-        raw.includes(
-          title(tenant === "demo" ? "ONLY-DEMO-TENANT" : "ONLY-OTHER-TENANT"),
-        ),
-      );
-      assert.ok(
-        !raw.includes(
-          title(tenant === "demo" ? "ONLY-OTHER-TENANT" : "ONLY-DEMO-TENANT"),
-        ),
-      );
+      assert.ok(raw.includes(title("运营简报")));
+      for (const name of ["ONLY-DEMO-TENANT", "ONLY-OTHER-TENANT"])
+        assert.ok(!raw.includes(title(name)));
     }
   } finally {
     await new Promise<void>((r) => app.server.close(() => r()));
