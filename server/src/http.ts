@@ -1,3 +1,5 @@
+import { briefData } from "./brief-data.ts";
+import { renderBrief } from "./brief-pdf.ts";
 import { readConnections, connectionCommand } from "./connections.ts";
 import { qiweConnection, saveQiweConnection } from "./qiwe.ts";
 import {
@@ -268,6 +270,19 @@ export function createApp(
               : undefined;
           requireValue(ticket, "工单不存在", 404);
           send(res, 200, ticket);
+          return;
+        }
+        if (pathname === "/api/brief.pdf") {
+          requireValue(method === "GET", "不支持此请求方式", 405);
+          const now = new Date(), today = businessDate(now);
+          const start = url.searchParams.get("start") || addDays(today, -6);
+          const end = url.searchParams.get("end") || today;
+          requireValue(validDate(start) && validDate(end) && start <= end && end <= today
+            && (Date.parse(end) - Date.parse(start)) / 86400000 < 31, "简报日期范围须为过去 1 至 31 天");
+          const workspace = await provider.read(actor);
+          const pdf = await renderBrief(briefData(workspace, start, end, now), root);
+          res.writeHead(200, { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="BeeMax-Brief-${start}-${end}.pdf"`, "Cache-Control": "no-store", "Content-Length": pdf.length });
+          res.end(pdf);
           return;
         }
         const w = await provider.read(actor);

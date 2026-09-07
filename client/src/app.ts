@@ -1,3 +1,4 @@
+import { exportBrief } from "./export-brief.js";
 import { pageSizes } from "../../shared/pagination.js";
 import { dispatchParameters } from "./dispatch-parameters.js";
 import { navs, modulePage, isKnownPage } from "./navigation.js";
@@ -719,18 +720,7 @@ async function handleClick(e: MouseEvent) {
       }
       renderContent();
     },
-    export: () => {
-      const m = state.metrics!,
-        content = `千蜂智服运营简报\n客户：${w().tenant.name}\n数据模式：${state.boot!.mode}\n范围：${m.trend[0]?.date} — ${m.trend.at(-1)?.date}\n新建：${m.created}\n闭环：${m.closed}\n当前待闭环：${m.open}\n`;
-      const url = URL.createObjectURL(
-          new Blob([content], { type: "text/plain;charset=utf-8" }),
-        ),
-        link = document.createElement("a");
-      link.href = url;
-      link.download = "运营简报.txt";
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    },
+    export: exportBrief,
   };
   if (a) await actions[a]?.();
 }
