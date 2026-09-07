@@ -34,7 +34,6 @@ import {
 } from "./core.js";
 export const tabs = [
   ["routing", "路由规则"],
-  ["parameters", "派单参数"],
   ["learning", "学习与灰度"],
   ["connection", "QiWe 连接"],
   ["mcp", "MCP 数据连接"],
@@ -127,20 +126,6 @@ function content() {
         ) +
         pager(routes.length)
       );
-    case "parameters":
-      return `<div class="config-title"><div><h2>派单与提醒</h2><p>分钟为单位，保存前核对变更。${data.integration ? "每次只修改一项；接单后完成提醒须为 60 分钟的倍数。" : ""}</p></div>${button("编辑参数", "parameters", false, !canWrite("parameters.save"))}</div>${[
-        ["升级间隔", data.parameters.escalationMinutes],
-        [
-          data.integration ? "接单后完成提醒" : "接单提醒",
-          data.parameters.acceptReminderMinutes,
-        ],
-        ["挂起提前提醒", data.parameters.holdReminderMinutes],
-      ]
-        .map(
-          ([n, v]) =>
-            `<div class="config-row"><h3>${n}</h3><strong>${v} 分钟</strong></div>`,
-        )
-        .join("")}`;
     case "learning":
       return `<div class="config-title"><div><h2>学习与灰度</h2><p>修改后由后端保存配置。</p></div></div>${[
         ["autoApply", "转单学习自动应用"],

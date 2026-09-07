@@ -15,6 +15,7 @@ export function modulePage(page: string) {
       {
         trends: "tickets",
         "staff-roster": "staff",
+        "staff-parameters": "staff",
         agent: "accounts",
       } as Record<string, string>
     )[page] || page
@@ -35,6 +36,7 @@ export function moduleTabs(page: string) {
     : [
         ["staff", "人员负载"],
         ["staff-roster", "排班人员"],
+        ["staff-parameters", "派单参数"],
       ];
   return `<nav class="module-tabs" aria-label="${tickets ? "工单管理" : "人员与负载"}功能切换">${tabs.map(([id, label]) => `<a href="#${id}" ${page === id ? 'class="active" aria-current="page"' : ""}>${label}</a>`).join("")}</nav>`;
 }

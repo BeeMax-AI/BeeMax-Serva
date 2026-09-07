@@ -1,3 +1,4 @@
+import { dispatchParameters } from "./dispatch-parameters.js";
 import { navs, modulePage, isKnownPage } from "./navigation.js";
 import { roster } from "./roster.js";
 import {
@@ -269,6 +270,7 @@ function renderContent() {
     tickets: pages.tickets,
     staff: pages.staff,
     "staff-roster": roster,
+    "staff-parameters": dispatchParameters,
     accounts: pages.accounts,
     messages: pages.messages,
     agent: pages.agent,

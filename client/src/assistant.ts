@@ -95,6 +95,7 @@ function contextName(m: Conversation["messages"][number]) {
         trends: "工单管理 · 工单趋势",
         staff: "人员与负载 · 人员负载",
         "staff-roster": "人员与负载 · 排班人员",
+        "staff-parameters": "人员与负载 · 派单参数",
         settings: "配置管理",
         accounts: "企微账号",
         messages: "消息日志",
