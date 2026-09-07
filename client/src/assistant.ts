@@ -91,9 +91,10 @@ function contextName(m: Conversation["messages"][number]) {
       {
         overview: "运营总览",
         insights: "AI智能分析",
-        tickets: "工单明细",
-        trends: "工单趋势",
-        staff: "人员与负载",
+        tickets: "工单管理 · 工单明细",
+        trends: "工单管理 · 工单趋势",
+        staff: "人员与负载 · 人员负载",
+        "staff-roster": "人员与负载 · 排班人员",
         settings: "配置管理",
         accounts: "企微账号",
         messages: "消息日志",

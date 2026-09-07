@@ -1,3 +1,5 @@
+import { navs, modulePage, isKnownPage } from "./navigation.js";
+import { roster } from "./roster.js";
 import {
   editNotificationMember,
   editNotificationMode,
@@ -71,16 +73,6 @@ import {
   askAboutTicket,
   assistantPageChanged,
 } from "./assistant.js";
-const navs = [
-  ["insights", "spark", "AI智能分析"],
-  ["overview", "overview", "运营总览"],
-  ["trends", "trend", "工单趋势"],
-  ["tickets", "ticket", "工单明细"],
-  ["staff", "staff", "人员与负载"],
-  ["accounts", "staff", "企微账号"],
-  ["messages", "chat", "消息日志"],
-  ["settings", "settings", "配置管理"],
-];
 let pendingLoad: Promise<SyncOutcome> | undefined;
 let loadController: AbortController | undefined;
 let loadSequence = 0,
@@ -258,7 +250,7 @@ function login() {
 function renderShell() {
   const a = state.boot!.actor;
   document.querySelector("#app")!.innerHTML =
-    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === state.page || (id === "accounts" && state.page === "agent") ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === state.page ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${state.page === "agent" ? "企微账号" : navs.find((n) => n[0] === state.page)?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
+    `<aside class="sidebar"><a class="brand" href="#overview" aria-label="千蜂智服首页"><img class="brand-mark" src="/assets/beemax-logo-mark.svg" alt=""><img class="brand-name" src="/assets/beemax-wordmark-white.svg" alt="千蜂AI"></a><div class="workspace"><div><strong>千蜂智服</strong><small>AI 服务运营平台</small></div></div><div class="nav-label">AI 工作区</div><nav id="navigation">${navs.map(([id, i, name]) => `${id === "overview" ? '<div class="nav-separator"></div><div class="nav-label">工作空间</div>' : id === "accounts" ? '<div class="nav-separator"></div><div class="nav-label">连接管理</div>' : ""}<a href="#${id}" class="nav-item ${id === modulePage(state.page) ? "active" : ""} ${id === "insights" ? "ai-nav-item" : ""}" ${id === modulePage(state.page) ? 'aria-current="page"' : ""}>${icon(i)}<span>${name}</span></a>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-status"><span></span>${state.boot!.mode === "local" ? "本地开发数据" : "MCP 数据源"}</div><div class="profile"><span class="avatar inverse">${esc(a.name[0])}</span><div>${esc(a.name)}<small>${esc({ owner: "平台管理员", admin: "运营管理员", viewer: "只读用户" }[a.role])} · ${esc(w().tenant.name)}</small></div><button class="icon-button" data-action="logout" aria-label="退出登录">${icon("arrow")}</button></div></div></aside><div class="shell"><header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" data-action="nav" aria-label="打开导航">☰</button><span>工作空间</span><span>/</span><strong id="crumb">${navs.find((n) => n[0] === modulePage(state.page))?.[2] || ""}</strong></div><div class="top-actions">${state.boot!.mode === "local" ? `<span class="demo-label">本地模式 · MCP 待接入</span>` : `<button id="sync-status" class="sync-status" data-action="sync-settings" aria-label="设置同步周期"></button>`}<button class="icon-button" data-action="refresh" aria-label="刷新页面">${icon("refresh")}</button></div></header><main id="content"></main><footer class="page-footer"><span>BeeMax AI · 让每一件事，都有回应</span><span>${esc(w().tenant.name)} · UTC+8</span></footer></div>`;
 }
 function renderContent() {
   if (!state.boot) return;
@@ -276,6 +268,7 @@ function renderContent() {
     trends: pages.trends,
     tickets: pages.tickets,
     staff: pages.staff,
+    "staff-roster": roster,
     accounts: pages.accounts,
     messages: pages.messages,
     agent: pages.agent,
@@ -352,7 +345,7 @@ async function runLoad(automatic = false): Promise<SyncOutcome> {
     syncPhase = "synced";
     syncSchedule.reset();
     state.page = location.hash.slice(1) || "insights";
-    if (!navs.some((n) => n[0] === state.page) && state.page !== "agent")
+    if (!isKnownPage(state.page))
       state.page = "overview";
     if (!document.querySelector("#content")) renderShell();
     updateNavigation();
@@ -382,7 +375,7 @@ function updateNavigation() {
     .querySelectorAll<HTMLAnchorElement>("#navigation a")
     .forEach((link) => {
       const active =
-        link.hash === "#" + (state.page === "agent" ? "accounts" : state.page);
+        link.hash === "#" + modulePage(state.page);
       link.classList.toggle("active", active);
       if (active) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
@@ -390,16 +383,14 @@ function updateNavigation() {
   const crumb = document.querySelector("#crumb");
   if (crumb)
     crumb.textContent =
-      state.page === "agent"
-        ? "企微账号"
-        : navs.find((n) => n[0] === state.page)?.[2] || "运营总览";
+      navs.find((n) => n[0] === modulePage(state.page))?.[2] || "运营总览";
 }
 function showLoadedPage() {
   if (!state.boot) {
     void load();
     return;
   }
-  if (!navs.some((n) => n[0] === state.page) && state.page !== "agent")
+  if (!isKnownPage(state.page))
     state.page = "overview";
   loadMetrics();
   updateNavigation();
@@ -676,8 +667,7 @@ async function handleClick(e: MouseEvent) {
       navigate("settings");
     },
     roster: () => {
-      state.tab = "roster";
-      navigate("settings");
+      navigate("staff-roster");
     },
     reset: () => {
       state.query = "";

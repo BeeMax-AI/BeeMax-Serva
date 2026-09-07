@@ -1,4 +1,7 @@
 /* Application states and forms extend the approved BeeMax design. */
+.module-tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 24px; overflow-x: auto; }
+.module-tabs a { padding: 12px 0; white-space: nowrap; color: var(--muted); border-bottom: 2px solid transparent; }
+.module-tabs a.active { color: var(--action); border-bottom-color: var(--action); font-weight: 600; }
 [hidden] {
   display: none !important;
 }

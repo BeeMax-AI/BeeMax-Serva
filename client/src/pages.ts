@@ -1,3 +1,4 @@
+import { moduleTabs } from "./navigation.js";
 import { whitelistSection } from "./whitelist.js";
 import { connections } from "./connections.js";
 import { remoteActions } from "./mcp.js";
@@ -135,10 +136,11 @@ function bars(items: { name: string; value: number }[]) {
 export function trends() {
   return (
     title(
-      "看见趋势，提前行动。",
-      "从新建、闭环与积压，了解运营节奏的变化。",
+      "工单管理",
+      "追踪工单处理进度，查看业务趋势与分布。",
       remoteActions("trends") + button("导出简报", "export"),
     ) +
+    moduleTabs("trends") +
     trendPanel() +
     `<div class="section-grid"><section class="panel"><div class="panel-heading"><h2>期间工单类型</h2></div>${bars(state.metrics!.byType)}</section><section class="panel"><div class="panel-heading"><h2>期间小组分布</h2></div>${bars(state.metrics!.byGroup)}</section></div>`
   );
@@ -154,7 +156,8 @@ export function tickets() {
         .includes(state.query.toLowerCase()),
   );
   return (
-    title("工单明细", "追踪每个处理节点，查看状态、负责人和完整记录。") +
+    title("工单管理", "追踪工单处理进度，查看业务趋势与分布。") +
+    moduleTabs("tickets") +
     `<section class="panel"><div class="filters"><label class="search">${icon("search")}<input id="search" aria-label="搜索工单" placeholder="搜索工单、${esc(w().tenant.referenceLabel)}、${w().integration ? "类型" : "问题"}或负责人" value="${esc(state.query)}"></label><select data-filter="status" aria-label="筛选状态">${options(
       Object.entries(statuses).map(([id, name]) => ({ id, name })),
       state.status,
@@ -180,10 +183,11 @@ export function staff() {
   );
   return (
     title(
-      "合理分工，从看见负载开始。",
-      "基于人员配置与工单时间戳计算。",
-      remoteActions("staff") + button("排班与升级通知", "roster"),
+      "人员与负载",
+      "查看人员负载，管理排班与逐级通知。",
+      remoteActions("staff"),
     ) +
+    moduleTabs("staff") +
     `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}` +
     rail([
       ["人员", rows.length, "当前筛选范围"],

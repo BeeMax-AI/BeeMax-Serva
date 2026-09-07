@@ -1,4 +1,3 @@
-import { notificationContent } from "./notifications.js";
 import { connections, confirmConnectionCommand } from "./connections.js";
 import { qiweContent } from "./qiwe.js";
 import { connectionContent } from "./mcp.js";
@@ -35,7 +34,6 @@ import {
 } from "./core.js";
 export const tabs = [
   ["routing", "路由规则"],
-  ["roster", "排班人员"],
   ["parameters", "派单参数"],
   ["learning", "学习与灰度"],
   ["connection", "QiWe 连接"],
@@ -97,12 +95,6 @@ function content() {
       (!state.group || r.groupId === state.group) &&
       matches(r.type, r.keywords, groupName(r.groupId)),
   );
-  const people = data.people.filter(
-    (p) =>
-      (!state.group || p.groupId === state.group) &&
-      (!state.tier || String(p.tier) === state.tier) &&
-      matches(p.name, groupName(p.groupId)),
-  );
   const audit = data.audit.filter((a) =>
     matches(a.actor, auditNames[a.action] || a.action, a.target, a.detail),
   );
@@ -134,29 +126,6 @@ function content() {
           ),
         ) +
         pager(routes.length)
-      );
-    case "roster":
-      return (
-        notificationContent() +
-        `<div class="config-title"><div><h2>人员与默认排班</h2><p>${data.integration ? "按小组和档位查看人员与默认排班。" : "按小组、档位和在岗状态配置接单人员。"}</p></div>${data.integration ? `<div>${button("楼栋与时段", "roster-rules")} ${button("今日当班", "roster-today", false, !canWrite("roster.today"))} ${button("导入排班", "roster-import", false, !canWrite("roster.import"))}</div>` : button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
-        (data.integration
-          ? `<div class="note-band">${esc(data.integration.rosterNote)} 默认名单支持调整档位；今日当班和排班原文分别设置。</div>`
-          : "") +
-        filterBar("搜索姓名或小组", true, true) +
-        table(
-          [
-            "人员",
-            "小组",
-            "通知级别",
-            data.integration ? "排班说明" : "在岗",
-            "操作",
-          ],
-          slicePage(people).map(
-            (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>L${p.tier}</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? `<td>${p.defaultTier && p.rosterUserId ? `<button class="text-link" data-roster-person="${esc(p.id)}" ${canWrite("roster.person.save") ? "" : "disabled"}>调整默认档位</button>` : "—"}</td>` : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
-          ),
-        ) +
-        pager(people.length)
       );
     case "parameters":
       return `<div class="config-title"><div><h2>派单与提醒</h2><p>分钟为单位，保存前核对变更。${data.integration ? "每次只修改一项；接单后完成提醒须为 60 分钟的倍数。" : ""}</p></div>${button("编辑参数", "parameters", false, !canWrite("parameters.save"))}</div>${[
