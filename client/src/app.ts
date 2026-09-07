@@ -265,6 +265,10 @@ function renderContent() {
       ),
     ].map((el) => el.dataset.reportDisclosure),
   );
+  const expandedTrendSections = new Set(
+    [...document.querySelectorAll<HTMLDetailsElement>("details[data-trend-disclosure][open]")]
+      .map(el => el.dataset.trendDisclosure),
+  );
   const map: Record<string, () => string> = {
     overview: pages.overview,
     trends: pages.trends,
@@ -291,6 +295,9 @@ function renderContent() {
       .forEach((el) => {
         el.open = expandedReportSections.has(el.dataset.reportDisclosure);
       });
+  document.querySelectorAll<HTMLDetailsElement>("details[data-trend-disclosure]").forEach(el => {
+    el.open = expandedTrendSections.has(el.dataset.trendDisclosure);
+  });
   const auto = document.querySelector<HTMLInputElement>("#message-auto");
   if (auto) auto.checked = messageAuto;
 }
@@ -487,6 +494,7 @@ async function handleClick(e: MouseEvent) {
   }
   if (b.dataset.period) {
     state.period = b.dataset.period;
+    for (const key of Object.keys(state.extraPages)) if (key.startsWith("trend-")) state.extraPages[key] = 1;
     loadMetrics();
     renderContent();
     return;
@@ -736,6 +744,15 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const input = e.target as HTMLInputElement;
+  if (input.dataset.trendGroup !== undefined) {
+    const selected = new Set(state.trendGroups || []);
+    if (input.checked && selected.size < 3) selected.add(input.dataset.trendGroup);
+    else selected.delete(input.dataset.trendGroup);
+    state.trendGroups = [...selected];
+    renderContent();
+    [...document.querySelectorAll<HTMLInputElement>("[data-trend-group]")].find(el => el.dataset.trendGroup === input.dataset.trendGroup)?.focus({preventScroll:true});
+    return;
+  }
   if (input.dataset.pageSize) {
     const size = Number(input.value),
       scope = input.dataset.pageSize;

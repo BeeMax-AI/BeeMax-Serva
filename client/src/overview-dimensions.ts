@@ -15,6 +15,9 @@ export function dimensionDescription(f: DimensionFilter) {
   const group =
     w().groups.find((g) => g.id === f.key)?.name || f.key || "未分组";
   const range = `${new Date(f.from + 28800000).toISOString().slice(0, 10)} — ${new Date(f.at + 28800000).toISOString().slice(0, 10)}`;
+  if (f.kind === "created" || f.kind === "closed") return `${range} ${f.kind === "created" ? "新建" : "闭环"}工单`;
+  if (f.kind === "group_created") return `${range} 新建 · ${group}`;
+  if(f.kind === "response_all" || f.kind === "processing_all") return `${range} ${f.kind === "response_all" ? "响应" : "处理"}时长有效样本`;
   if (f.kind === "age")
     return `当前未闭环 · ${ageLabels[f.key]}（按点击时刻计算）`;
   if (f.kind === "open" || f.kind === "waiting")

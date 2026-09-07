@@ -9,7 +9,18 @@ export const ageLabels: Record<string, string> = {
 };
 export type DimensionFilter = {
   kind:
-    "age" | "waiting" | "open" | "response" | "processing" | "hour" | "type";
+    | "age"
+    | "waiting"
+    | "open"
+    | "response"
+    | "processing"
+    | "hour"
+    | "type"
+    | "created"
+    | "closed"
+    | "response_all"
+    | "processing_all"
+    | "group_created";
   key: string;
   from: number;
   at: number;
@@ -53,6 +64,28 @@ export function durationMinutes(
     : null;
 }
 export function matchesDimension(t: Ticket, f: DimensionFilter) {
+  if (f.kind === "created" || f.kind === "group_created")
+    return (
+      inRange(instant(t.createdAt), f) &&
+      (f.kind === "created" || t.groupId === f.key)
+    );
+  if (f.kind === "closed") {
+    const created = instant(t.createdAt),
+      closed = instant(t.closedAt);
+    return (
+      t.status === "CLOSED" &&
+      Number.isFinite(created) &&
+      closed >= created &&
+      inRange(closed, f)
+    );
+  }
+  if (f.kind === "response_all" || f.kind === "processing_all") {
+    const kind = f.kind === "response_all" ? "response" : "processing";
+    return (
+      inRange(instant(kind === "response" ? t.acceptedAt : t.closedAt), f) &&
+      durationMinutes(t, kind, f.at) !== null
+    );
+  }
   if (f.kind === "age")
     return t.status !== "CLOSED" && ageBucket(t, f.at) === f.key;
   if (f.kind === "hour" || f.kind === "type") {
@@ -192,6 +225,11 @@ export function readDimension(hash: string): DimensionFilter | null {
       "processing",
       "hour",
       "type",
+      "created",
+      "closed",
+      "response_all",
+      "processing_all",
+      "group_created",
     ].includes(kind)
   )
     return null;

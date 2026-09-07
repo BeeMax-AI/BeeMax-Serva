@@ -1,3 +1,4 @@
+import { trendDetailPanels } from "./trend-details.js";
 import { overviewDimensionPanels, dimensionDescription } from "./overview-dimensions.js";
 import { readDimension, matchesDimension } from "../../shared/overview-dimensions.js";
 import { moduleTabs } from "./navigation.js";
@@ -131,10 +132,6 @@ export function overview() {
     )}</section><section class="panel"><div class="panel-heading"><h2>人员负载</h2><a class="text-link" href="#staff">人员明细 →</a></div>${staffTable(4)}</section></div>` + overviewDimensionPanels()
   );
 }
-function bars(items: { name: string; value: number }[]) {
-  const max = Math.max(1, ...items.map((r) => r.value));
-  return `<div class="horizontal-bars">${items.length ? items.map((r) => `<div class="bar-line"><span>${esc(r.name)}</span><div class="bar-track"><i style="width:${(r.value / max) * 100}%"></i></div><span>${r.value} 单</span></div>`).join("") : empty("当前范围无数据")}</div>`;
-}
 export function trends() {
   return (
     title(
@@ -144,7 +141,7 @@ export function trends() {
     ) +
     moduleTabs("trends") +
     trendPanel() +
-    `<div class="section-grid"><section class="panel"><div class="panel-heading"><h2>期间工单类型</h2></div>${bars(state.metrics!.byType)}</section><section class="panel"><div class="panel-heading"><h2>期间小组分布</h2></div>${bars(state.metrics!.byGroup)}</section></div>`
+    trendDetailPanels()
   );
 }
 export function tickets() {

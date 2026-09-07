@@ -24,6 +24,7 @@ export const state: {
   extraPages: Record<string, number>;
   period: string;
   overviewDays: 7 | 30;
+  trendGroups: string[] | null;
   metrics: Metrics | null;
   report: string;
   date: string;
@@ -49,6 +50,7 @@ export const state: {
   extraPages: {},
   period: "week",
   overviewDays: 7,
+  trendGroups: null,
   metrics: null,
   report: "",
   date: "",
