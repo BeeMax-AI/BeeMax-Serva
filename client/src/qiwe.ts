@@ -2,8 +2,6 @@ import { canManageQiwe } from "../../shared/domain.js";
 import { state, esc, fmt, tag } from "./core.js";
 const eye =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
-const key =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 3a7 7 0 0 0-6.5 9.6L3 17v4h4v-3h3l2.4-2.5A7 7 0 1 0 14 3Z"/><circle cx="16" cy="8" r="1"/></svg>';
 function credentialRow(
   name: string,
   label: string,
@@ -19,17 +17,18 @@ export function qiweContent() {
   if (!q)
     return `<div class="config-title"><div><h2>QiWe 凭据</h2><p>配置状态尚未加载，请刷新页面重试。</p></div></div>`;
   const saved = q.tokenSaved || q.accountSaved || q.passwordSaved;
-  return `<div class="qiwe-card-head"><span class="qiwe-key">${key}</span><div><h2>QiWe 凭据</h2><p>配置消息接口 Token 和 QiWe Manager 管理账号。</p></div>${tag(saved ? "凭据已保存" : "待配置", saved)}</div>
+  const connectionStatus = `<div class="config-row qiwe-connection-meta"><div><h3>连接状态：未验证</h3><p>${q.updatedAt ? "最近更新 " + fmt(q.updatedAt) : "尚未保存配置"} · 连接检测待 QiWe 接口接入。</p></div><button type="button" class="button" disabled title="尚未接入 QiWe 检测接口">检测连接</button></div>`;
+  return `<div class="config-title qiwe-heading"><div><h2>QiWe 凭据</h2><p>配置消息接口 Token 和 QiWe Manager 管理账号。</p></div><div class="qiwe-heading-actions">${tag(saved ? "凭据已保存" : "待配置", saved)}<a class="text-link" href="#accounts">管理企微账号 →</a></div></div>
   ${
     canManageQiwe(state.boot!.actor.role)
       ? `<form id="credential-form" class="qiwe-form" data-revision="${q.revision}" autocomplete="off"><div class="qiwe-fields">
     ${credentialRow("token", "Token", "QiWe 消息接口 X-QIWE-TOKEN", q.tokenSaved, 500, true)}
     ${credentialRow("account", "账号", "QiWe Manager 控制台管理账号" + (q.accountMask ? "（" + esc(q.accountMask) + "）" : ""), q.accountSaved, 100)}
     ${credentialRow("password", "密码", "QiWe Manager 控制台管理密码", q.passwordSaved, 500, true)}
-  </div><div class="qiwe-form-actions"><span>留空保留现有值，保存后清空输入。</span><button type="reset" class="button">重置输入</button><button type="submit" class="button primary">保存配置</button></div></form>`
-      : `<div class="qiwe-readonly"><div>Token：${q.tokenSaved ? "已保存" : "未配置"}</div><div>账号：${esc(q.accountMask || "未配置")}</div><div>密码：${q.passwordSaved ? "已保存" : "未配置"}</div><p>当前账号为只读账号，无法修改配置。</p></div>`
+  </div>${connectionStatus}<div class="qiwe-form-actions"><span>留空保留现有值，保存后清空输入。</span><button type="reset" class="button">重置输入</button><button type="submit" class="button primary">保存配置</button></div></form>`
+      : `<div class="qiwe-readonly"><div>Token：${q.tokenSaved ? "已保存" : "未配置"}</div><div>账号：${esc(q.accountMask || "未配置")}</div><div>密码：${q.passwordSaved ? "已保存" : "未配置"}</div><p>当前账号为只读账号，无法修改配置。</p></div>${connectionStatus}`
   }
-  <div class="qiwe-connection-meta"><span>连接状态：<strong>未验证</strong> · ${q.updatedAt ? "最近更新 " + fmt(q.updatedAt) : "尚未保存配置"}</span><button class="button" disabled title="尚未接入 QiWe 检测接口">检测连接</button></div><div class="panel-footer"><a class="text-link" href="#accounts">管理企微账号 →</a><span>连接检测待 QiWe 接口接入。</span></div>`;
+  `;
 }
 export function toggleQiweSecret(button: HTMLButtonElement) {
   const name = button.dataset.qiweSecret;

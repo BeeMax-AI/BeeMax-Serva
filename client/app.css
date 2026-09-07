@@ -752,27 +752,31 @@ aside.panel {
 @media (prefers-reduced-motion: reduce) { .chat-request-state[data-status="pending"] .chat-state-dot { animation: none; } }
 
 /* QiWe credential editor follows the three-row reference layout. */
-.qiwe-panel { max-width:960px; margin:28px auto; }
-.qiwe-card-head { display:flex; gap:16px; align-items:center; padding:26px; border-bottom:1px solid var(--line); }
-.qiwe-key { width:44px; height:44px; display:grid; place-items:center; flex-shrink:0; border-radius:10px; background:var(--blue-soft); color:var(--action); }
-.qiwe-key svg { width:25px; height:25px; }
-.qiwe-card-head h2 { margin:0 0 6px; font-size:18px; }
-.qiwe-card-head p { margin:0; color:var(--muted); font-size:12px; }
-.qiwe-card-head .status { margin-left:auto; flex-shrink:0; }
-.qiwe-fields { padding:30px 26px 6px; }
-.qiwe-field { display:grid; grid-template-columns:110px minmax(0,1fr); align-items:start; gap:20px; margin-bottom:28px; }
-.qiwe-field>label { font-size:13px; font-weight:500; padding-top:15px; }
+/* QiWe uses the same panel and heading grid as the other configuration tabs. */
+.qiwe-heading { gap:16px; flex-wrap:wrap; }
+.qiwe-heading-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.qiwe-fields { padding:2px 22px 20px; }
+.qiwe-field { display:grid; grid-template-columns:110px minmax(0,1fr); align-items:start; gap:20px; max-width:760px; margin-top:20px; }
+.qiwe-field>label { font-size:13px; font-weight:500; padding-top:11px; }
 .qiwe-input-wrap { position:relative; }
-.qiwe-input-wrap input { display:block; width:100%; min-width:0; padding:14px 48px 14px 14px; border:1px solid var(--line); border-radius:8px; background:var(--soft); color:var(--navy); font:inherit; font-size:13px; }
-.qiwe-field small { display:block; margin-top:9px; color:var(--muted); font-size:11px; line-height:1.7; }
-.qiwe-reveal { position:absolute; top:4px; right:4px; width:40px; height:40px; display:grid; place-items:center; border:0; border-radius:6px; background:transparent; color:var(--muted); cursor:pointer; }
+.qiwe-input-wrap input { display:block; width:100%; min-width:0; padding:10px 44px 10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--soft); color:var(--navy); font:inherit; font-size:13px; }
+.qiwe-field small { display:block; margin-top:6px; color:var(--muted); font-size:11px; line-height:1.7; overflow-wrap:anywhere; }
+.qiwe-reveal { position:absolute; top:2px; right:2px; width:36px; height:36px; display:grid; place-items:center; border:0; border-radius:6px; background:transparent; color:var(--muted); cursor:pointer; }
 .qiwe-reveal svg { width:19px; height:19px; }
 .qiwe-reveal:hover,.qiwe-reveal[aria-pressed="true"] { background:var(--blue-soft); color:var(--action); }
-.qiwe-form-actions { padding:20px 26px; border-top:1px solid var(--line); background:var(--soft); display:flex; align-items:center; gap:10px; }
+.qiwe-form-actions { padding:16px 22px; border-top:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .qiwe-form-actions>span { margin-right:auto; color:var(--muted); font-size:11px; }
-.qiwe-connection-meta { padding:18px 26px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--muted); font-size:11px; border-top:1px solid var(--line); }
-.qiwe-readonly { padding:26px; color:var(--muted); font-size:13px; line-height:2.5; }
-@media(max-width:680px) { .qiwe-panel { margin:18px auto; } .qiwe-card-head { flex-wrap:wrap; padding:20px; } .qiwe-card-head .status { margin-left:60px; } .qiwe-fields { padding:22px 20px 0; } .qiwe-field { grid-template-columns:minmax(0,1fr); gap:9px; margin-bottom:24px; } .qiwe-field>label { padding-top:0; } .qiwe-form-actions { padding:18px 20px; flex-wrap:wrap; justify-content:flex-end; } .qiwe-form-actions>span { width:100%; margin-bottom:6px; } .qiwe-connection-meta { padding:18px 20px; flex-wrap:wrap; } }
+.qiwe-connection-meta { padding:18px 22px; }
+.qiwe-readonly { padding:0 22px 20px; color:var(--muted); font-size:13px; line-height:2.5; }
+@media(max-width:719px) {
+  .qiwe-fields { padding:0 18px 18px; }
+  .qiwe-field { grid-template-columns:minmax(0,1fr); gap:6px; margin-top:18px; }
+  .qiwe-field>label { padding-top:0; }
+  .qiwe-form-actions { padding:16px 18px; justify-content:flex-end; }
+  .qiwe-form-actions>span { width:100%; margin-bottom:4px; }
+  .qiwe-connection-meta { padding:18px; flex-wrap:wrap; }
+  .qiwe-readonly { padding:0 18px 18px; }
+}
 
 .whitelist-types { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px 20px; }
 .whitelist-id { overflow-wrap: anywhere; max-width: 300px; }

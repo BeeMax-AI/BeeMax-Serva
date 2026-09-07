@@ -55,7 +55,7 @@ export function settings() {
       )
       .join(
         "",
-      )}</div><section class="panel ${state.tab === "connection" ? "qiwe-panel" : ""}">${content()}</section>`
+      )}</div><section class="panel">${content()}</section>`
   );
 }
 const auditNames: Record<string, string> = {
