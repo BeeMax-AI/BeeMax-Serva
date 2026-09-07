@@ -1,3 +1,7 @@
+import {
+  notificationTiers,
+  changeNotificationMember,
+} from "./roster-notifications.ts";
 import { qiweAudit } from "./qiwe.ts";
 import { normalizeAnalytics, normalizeAccess } from "./mcp-data.ts";
 import { timelineEvent } from "./mcp-timeline.ts";
@@ -194,6 +198,7 @@ export class McpProvider extends LocalProvider {
       .map(([id, g]: [string, any]) => ({ id, name: g.name }));
     this.rosterSnapshot = structuredClone(roster);
     const today = businessDate();
+    w.notificationTiers = notificationTiers(roster, w.groups, today);
     for (const group of w.groups) {
       const tiers = {
         ...roster.default[group.id],
@@ -369,6 +374,8 @@ export class McpProvider extends LocalProvider {
           "route.delete.type": "clear_routing_rule",
           "route.delete.subject": "clear_subject_rule",
           "roster.person.save": "set_roster",
+          "roster.member.add": "set_roster",
+          "roster.member.remove": "set_roster",
           "roster.today": "set_on_duty_today",
           "roster.import": "ingest_roster_text",
           "access.save": "set_whitelist",
@@ -669,7 +676,18 @@ export class McpProvider extends LocalProvider {
           "请选择有效小组",
         );
         args = { by: actor.name + " (" + actor.id + ")" };
-        if (c.type === "roster.person.save") {
+        if (
+          c.type === "roster.member.add" ||
+          c.type === "roster.member.remove"
+        ) {
+          tool = "set_roster";
+          args.roster = changeNotificationMember(
+            this.rosterSnapshot,
+            c.data,
+            c.type === "roster.member.add" ? "add" : "remove",
+            businessDate(),
+          );
+        } else if (c.type === "roster.person.save") {
           const tier = number(c.data.tier, "默认档位", 1, 4);
           requireValue(Number.isInteger(tier), "档位须为整数");
           const roster = structuredClone(this.rosterSnapshot),
@@ -847,7 +865,9 @@ export class McpProvider extends LocalProvider {
         target: String(c.data.id || c.data.groupId || c.data.channel || ""),
         detail: local
           ? "工作台记录已保存"
-          : `MCP ${tool} 已返回；请刷新核对业务状态`,
+          : c.type === "roster.member.add" || c.type === "roster.member.remove"
+            ? `${c.data.scope === "today" ? c.data.date : "默认名单"} · L${c.data.tier} · ${c.type.endsWith("add") ? "添加" : "移除"}通知人 ${c.data.userId}；MCP 已返回，请刷新核对`
+            : `MCP ${tool} 已返回；请刷新核对业务状态`,
       });
       this.saveDashboard(actor, metadata);
       this.cache = undefined;

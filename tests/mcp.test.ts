@@ -806,3 +806,49 @@ test("opening a known ticket refreshes its detail without reloading every worksp
   );
   assert.equal(f.calls.length, count);
 });
+
+test("notification member changes use set_roster with scoped date changes and retain permission guards", async (t) => {
+  const f = await fixture(t, false, true);
+  const w = await f.provider.read(actor);
+  assert.ok(w.notificationTiers?.length);
+  assert.ok(w.integration?.commands.includes("roster.member.add"));
+  const { businessDate } = await import("../server/src/dates.ts");
+  const command = {
+    type: "roster.member.add",
+    data: {
+      scope: "today",
+      date: businessDate(),
+      groupId: "service",
+      tier: 1,
+      userId: "new-user",
+      name: "新增人员",
+    },
+    expectedRevision: w.revision,
+    requestId: "add-notification",
+  };
+  await assert.rejects(
+    f.provider.command({ ...actor, role: "viewer" }, command),
+    /查看权限/,
+  );
+  await assert.rejects(
+    f.provider.command({ ...actor, tenantId: "foreign" }, command),
+    /尚未配置/,
+  );
+  await f.provider.command(actor, command);
+  const write = f.calls.find((c) => c.params?.name === "set_roster");
+  assert.deepEqual(write.params.arguments.roster.default, f.rosterDoc.default);
+  assert.equal(
+    write.params.arguments.roster.byDate[businessDate()].service.l1.at(-1)
+      .userid,
+    "new-user",
+  );
+  assert.deepEqual(
+    write.params.arguments.roster.specialists,
+    f.rosterDoc.specialists,
+  );
+  await f.provider.command(actor, command);
+  assert.equal(
+    f.calls.filter((c) => c.params?.name === "set_roster").length,
+    1,
+  );
+});

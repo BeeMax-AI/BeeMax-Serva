@@ -1,3 +1,4 @@
+import { notificationLevels } from "./notifications.js";
 import type { RemoteAnalytics } from "../../shared/domain.js";
 import {
   state,
@@ -182,7 +183,10 @@ export function editRosterPerson(id: string) {
   modal(
     "调整默认排班档位",
     `<p>${esc(p.name)} · ${esc(w().groups.find((g) => g.id === p.groupId)?.name)}</p><label>默认档位<select name="tier">${options(
-      [1, 2, 3, 4].map((n) => ({ id: String(n), name: n + " 档" })),
+      [1, 2, 3, 4].map((n) => ({
+        id: String(n),
+        name: notificationLevels[n][0],
+      })),
       String(p.defaultTier),
     )}</select></label><p>修改默认名单；当日覆盖、楼栋时段和专员规则继续保留。默认档位不代表实时在岗。</p>`,
     {

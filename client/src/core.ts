@@ -8,6 +8,8 @@ export const state: {
   tab: string;
   account: string;
   agent: string;
+  notificationGroup: string;
+  notificationScope: "default" | "today";
   whitelistTab: "authorization" | "push" | "access";
   whitelistPageSize: number;
   whitelistKind: "groups" | "members";
@@ -30,6 +32,8 @@ export const state: {
   tab: "routing",
   account: "",
   agent: "",
+  notificationGroup: "",
+  notificationScope: "today",
   whitelistTab: "authorization",
   whitelistPageSize: 20,
   whitelistKind: "groups",

@@ -1,3 +1,4 @@
+import { notificationContent } from "./notifications.js";
 import { connections, confirmConnectionCommand } from "./connections.js";
 import { qiweContent } from "./qiwe.js";
 import { connectionContent } from "./mcp.js";
@@ -66,6 +67,8 @@ const auditNames: Record<string, string> = {
   "route.delete": "删除路由",
   "person.save": "更新人员",
   "roster.person.save": "调整默认档位",
+  "roster.member.add": "添加升级通知人",
+  "roster.member.remove": "移除升级通知人",
   "roster.today": "设置今日当班",
   "roster.import": "导入排班",
   "access.save": "调整渠道访问权限",
@@ -105,10 +108,10 @@ function content() {
   const filterBar = (placeholder: string, groups = false, tiers = false) =>
     `<div class="staff-toolbar"><div class="staff-controls"><label class="staff-search">${icon("search")}<input id="search" aria-label="搜索配置记录" placeholder="${esc(placeholder)}" value="${esc(state.query)}"></label>${groups ? `<label class="staff-group"><span>小组</span><select data-filter="group" aria-label="筛选配置小组">${options(data.groups, state.group, "全部小组")}</select></label>` : ""}${
       tiers
-        ? `<label class="staff-group"><span>档位</span><select data-filter="tier" aria-label="筛选档位">${options(
+        ? `<label class="staff-group"><span>通知级别</span><select data-filter="tier" aria-label="筛选档位">${options(
             [...new Set(data.people.map((p) => p.tier))]
               .sort((a, b) => a - b)
-              .map((n) => ({ id: String(n), name: n + " 档" })),
+              .map((n) => ({ id: String(n), name: "L" + n })),
             state.tier,
             "全部档位",
           )}</select></label>`
@@ -133,6 +136,7 @@ function content() {
       );
     case "roster":
       return (
+        notificationContent() +
         `<div class="config-title"><div><h2>人员与默认排班</h2><p>${data.integration ? "按小组和档位查看人员与默认排班。" : "按小组、档位和在岗状态配置接单人员。"}</p></div>${data.integration ? `<div>${button("楼栋与时段", "roster-rules")} ${button("今日当班", "roster-today", false, !canWrite("roster.today"))} ${button("导入排班", "roster-import", false, !canWrite("roster.import"))}</div>` : button("新增人员", "add-person", true, !canWrite("person.save"))}</div>` +
         (data.integration
           ? `<div class="note-band">${esc(data.integration.rosterNote)} 默认名单支持调整档位；今日当班和排班原文分别设置。</div>`
@@ -142,13 +146,13 @@ function content() {
           [
             "人员",
             "小组",
-            "档位",
+            "通知级别",
             data.integration ? "排班说明" : "在岗",
             "操作",
           ],
           slicePage(people).map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>${p.tier} 档</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? `<td>${p.defaultTier && p.rosterUserId ? `<button class="text-link" data-roster-person="${esc(p.id)}" ${canWrite("roster.person.save") ? "" : "disabled"}>调整默认档位</button>` : "—"}</td>` : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${esc(groupName(p.groupId))}</td><td>L${p.tier}</td><td>${tag(p.scheduleLabel || (p.active ? "当班" : "未在岗"), p.active)}</td>${data.integration ? `<td>${p.defaultTier && p.rosterUserId ? `<button class="text-link" data-roster-person="${esc(p.id)}" ${canWrite("roster.person.save") ? "" : "disabled"}>调整默认档位</button>` : "—"}</td>` : `<td><button class="text-link" data-person="${esc(p.id)}" ${canWrite("person.save") ? "" : "disabled"}>编辑</button></td>`}</tr>`,
           ),
         ) +
         pager(people.length)

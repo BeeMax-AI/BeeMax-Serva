@@ -182,7 +182,7 @@ export function staff() {
     title(
       "合理分工，从看见负载开始。",
       "基于人员配置与工单时间戳计算。",
-      remoteActions("staff") + button("管理排班", "roster"),
+      remoteActions("staff") + button("排班与升级通知", "roster"),
     ) +
     `${w().integration ? `<div class="note-band">${esc(w().integration!.rosterNote)}</div>` : ""}` +
     rail([

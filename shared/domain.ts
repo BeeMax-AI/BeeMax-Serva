@@ -50,6 +50,15 @@ export interface Ticket {
   version: number;
   events: { at: string; name: string; detail: string; by: string }[];
 }
+export interface NotificationTier {
+  groupId: string;
+  tier: number;
+  overridden: boolean;
+  defaultMode: "people" | "all" | "special";
+  effectiveMode: "people" | "all" | "special";
+  defaults: { userId: string; name: string }[];
+  effective: { userId: string; name: string }[];
+}
 export interface Account {
   id: string;
   name: string;
@@ -228,6 +237,7 @@ export interface Workspace {
   };
   groups: Group[];
   people: Person[];
+  notificationTiers?: NotificationTier[];
   tickets: Ticket[];
   accounts: Account[];
   messages: Message[];

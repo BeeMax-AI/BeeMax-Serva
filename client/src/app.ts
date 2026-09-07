@@ -1,3 +1,4 @@
+import { editNotificationMember } from "./notifications.js";
 import { toggleQiweSecret, resetQiweSecrets } from "./qiwe.js";
 import { preserveConnections } from "./bootstrap-state.js";
 import {
@@ -555,6 +556,13 @@ async function handleClick(e: MouseEvent) {
       },
     );
   if (b.dataset.person) editPerson(b.dataset.person);
+  if (b.dataset.notificationAdd)
+    editNotificationMember(Number(b.dataset.notificationAdd));
+  if (b.dataset.notificationRemove)
+    editNotificationMember(
+      Number(b.dataset.tier),
+      b.dataset.notificationRemove,
+    );
   if (b.dataset.rosterPerson) editRosterPerson(b.dataset.rosterPerson);
   if (b.dataset.accessPolicy) editAccess(b.dataset.accessPolicy, true);
   if (b.dataset.accessAdd) editAccess(b.dataset.accessAdd);
@@ -734,6 +742,14 @@ document.addEventListener("change", (e) => {
     }
     renderContent();
     renderPaging(scope);
+    return;
+  }
+  if (input.id === "notification-group" || input.id === "notification-scope") {
+    if (input.id === "notification-group")
+      state.notificationGroup = input.value;
+    else state.notificationScope = input.value as "default" | "today";
+    renderContent();
+    document.getElementById(input.id)?.focus({ preventScroll: true });
     return;
   }
   if (input.id === "whitelist-account") {
