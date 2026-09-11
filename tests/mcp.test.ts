@@ -887,3 +887,56 @@ test("L3 mode change maps to set_roster with broadcast encoding and role guards"
     1,
   );
 });
+
+test("MCP retains unassigned auto-resolved tickets in lists, metrics and full details", async (t) => {
+  const f = await fixture(t);
+  for (const group of [undefined, null, ""]) {
+    const row = {
+      ...f.rows[0],
+      id: `AUTO-${f.rows.length}`,
+      group_id: group,
+      assignee: null,
+      status: "CLOSED",
+      accepted_at: null,
+      closed_at: 1788673346676,
+      events: [
+        {
+          ts: 1788673346676,
+          event: "auto_resolved",
+          detail: { answer: "已提供咨询回复。" },
+        },
+      ],
+    };
+    f.rows.push(row);
+  }
+  const w = await f.provider.read(actor);
+  assert.equal(w.tickets.length, 4);
+  assert.equal(w.tickets.filter((t) => t.status === "CLOSED").length, 3);
+  assert.ok(
+    w.tickets.slice(1).every((t) => t.groupId === "" && t.assigneeId === null),
+  );
+  assert.deepEqual(
+    w.groups.map((g) => g.id),
+    ["service"],
+    "unassigned must not become a writable routing group",
+  );
+  const { metrics } = await import("../shared/metrics.ts");
+  const m = metrics(w, "2026-09-06", "2026-09-06");
+  assert.ok(m.byGroup.some((g) => g.name === "未分组" && g.value === 3));
+  const detail = await f.provider.getTicket(actor, w.tickets[1].id);
+  assert.equal(detail?.groupId, "");
+  assert.equal(detail?.events[0].name, "自动解决");
+  assert.match(detail?.events[0].detail || "", /回复内容：已提供咨询回复/);
+});
+
+for (const patch of [
+  { group_id: 42 },
+  { group_id: {} },
+  { id: null },
+  { created_at: "not-a-date" },
+])
+  test(`MCP rejects malformed required ticket fields: ${JSON.stringify(patch)}`, async (t) => {
+    const f = await fixture(t);
+    Object.assign(f.rows[0], patch);
+    await assert.rejects(f.provider.read(actor), /MCP 工单字段不完整/);
+  });

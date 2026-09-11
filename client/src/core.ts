@@ -140,7 +140,7 @@ export const statusTag = (s: Ticket["status"]) =>
       ["NO_ACCEPT", "IN_PROGRESS", "ACCEPTED"].includes(s),
   );
 export const groupName = (id: string) =>
-  w().groups.find((g) => g.id === id)?.name || id;
+  w().groups.find((g) => g.id === id)?.name || id || "未分组";
 export const personName = (id: string | null) =>
   w().people.find((p) => p.id === id)?.name || "待接单";
 export const title = (name: string, description: string, actions = "") =>

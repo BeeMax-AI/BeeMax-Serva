@@ -35,7 +35,7 @@ export function metrics(
       created++;
       increment(createdDays, createdDay);
       increment(types, t.type);
-      increment(groups, groupNames.get(t.groupId) || t.groupId);
+      increment(groups, groupNames.get(t.groupId) || t.groupId || "未分组");
       if (t.acceptedAt) {
         responseSum +=
           (Date.parse(t.acceptedAt) - Date.parse(createdAt)) / 60000;

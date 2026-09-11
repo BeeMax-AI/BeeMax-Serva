@@ -3,6 +3,7 @@ import type { Group, Ticket } from "../../shared/domain.ts";
 const eventNames: Record<string, string> = {
   created: "创建工单",
   classified: "自动分类",
+  auto_resolved: "自动解决",
   dispatched: "派发工单",
   consult_dispatched: "咨询转派",
   accepted: "接单",
@@ -84,6 +85,7 @@ export function timelineEvent(
     holder: "跟进人",
     reason: "原因",
     note: "备注",
+    answer: "回复内容",
     mention: "通知人员",
     parent: "关联工单",
   }))

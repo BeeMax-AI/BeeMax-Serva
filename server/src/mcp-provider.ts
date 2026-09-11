@@ -453,7 +453,7 @@ export class McpProvider extends LocalProvider {
     requireValue(
       object(t) &&
         typeof t.id === "string" &&
-        typeof t.group_id === "string" &&
+        (t.group_id == null || typeof t.group_id === "string") &&
         iso(t.created_at),
       "MCP 工单字段不完整",
       502,
@@ -463,14 +463,16 @@ export class McpProvider extends LocalProvider {
       "MCP 出现未映射的工单状态，请更新状态映射",
       502,
     );
+    // Automatically resolved consultations may never be assigned to a group.
+    const groupId = t.group_id ?? "";
     let person = t.assignee
-      ? people.find((p) => p.groupId === t.group_id && p.name === t.assignee)
+      ? people.find((p) => p.groupId === groupId && p.name === t.assignee)
       : undefined;
     if (t.assignee && !person) {
       person = {
-        id: t.group_id + ":history:" + t.assignee,
+        id: groupId + ":history:" + t.assignee,
         name: String(t.assignee),
-        groupId: t.group_id,
+        groupId,
         tier: 1,
         active: false,
         scheduleLabel: "历史处理人",
@@ -485,7 +487,7 @@ export class McpProvider extends LocalProvider {
       ),
       reference: String(t.room || t.fields?.room || ""),
       type: String(t.type || "其他"),
-      groupId: t.group_id,
+      groupId,
       assigneeId: person?.id || null,
       status: t.status as TicketStatus,
       priority: String(t.priority || "—"),
